@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scooters Île de Ré - Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container-fluid py-4">
+<h1 class="display-5 fw-bold mb-4"><i class="fas fa-motorcycle text-primary"></i> Scooters Île de Ré</h1>
+<p class="lead text-muted mb-5">Suivi location scooters électriques - 2 mai 2026</p>
+
+<!-- Stats -->
+<div class="row g-3 mb-5">
+<div class="col-md-3"><div class="card h-100 shadow"><div class="card-body text-center p-4">
+<i class="fas fa-check-circle text-success fs-1 mb-3"></i><h2 class="fw-bold text-success">3/6</h2><p>Disponibles</p></div></div></div>
+<div class="col-md-3"><div class="card h-100 shadow"><div class="card-body text-center p-4">
+<i class="fas fa-euro-sign text-warning fs-1 mb-3"></i><h2 class="fw-bold text-warning">275€</h2><p>CA Total</p></div></div></div>
+<div class="col-md-3"><div class="card h-100 shadow"><div class="card-body text-center p-4">
+<i class="fas fa-battery-full text-primary fs-1 mb-3"></i><h2 class="fw-bold text-primary">78%</h2><p>Moy. Batterie</p></div></div></div>
+<div class="col-md-3"><div class="card h-100 shadow"><div class="card-body text-center p-4">
+<i class="fas fa-map-marker-alt text-info fs-1 mb-3"></i><h2 class="fw-bold text-info">6</h2><p>Scooters</p></div></div></div>
+</div>
+
+<!-- Tableau flotte -->
+<div class="card shadow mb-5">
+<div class="card-header bg-primary text-white"><h3 class="mb-0"><i class="fas fa-list"></i> Flotte en temps réel</h3></div>
+<div class="table-responsive">
+<table class="table table-hover mb-0">
+<thead><tr><th>ID</th><th>Scooter</th><th>Statut</th><th>Batterie</th><th>Lieu</th><th>Maintenance</th><th></th></tr></thead>
+<tbody>
+<tr class="table-success"><td>1</td><td><strong>Scoot1</strong></td><td><span class="badge bg-success">Disponible</span></td><td>85%</td><td>Saint-Martin</td><td>01/04</td><td><button class="btn btn-sm btn-success">Louer</button></td></tr>
+<tr class="table-warning"><td>2</td><td>Scoot2</td><td><span class="badge bg-warning">En location</span></td><td>60%</td><td>Ars-en-Ré</td><td>15/04</td><td><button class="btn btn-sm btn-warning">Suivi</button></td></tr>
+<tr class="table-danger"><td>3</td><td>Scoot3</td><td><span class="badge bg-danger">Maintenance</span></td><td>45%</td><td>La Flotte</td><td>20/04</td><td><button class="btn btn-sm btn-danger">Réparer</button></td></tr>
+<tr class="table-success"><td>4</td><td>Scoot4</td><td><span class="badge bg-success">Disponible</span></td><td>92%</td><td>Rivedoux</td><td>10/04</td><td><button class="btn btn-sm btn-success">Louer</button></td></tr>
+<tr class="table-success"><td>5</td><td>Scoot5</td><td><span class="badge bg-success">Disponible</span></td><td>78%</td><td>Ste-Marie</td><td>05/04</td><td><button class="btn btn-sm btn-success">Louer</button></td></tr>
+<tr class="table-warning"><td>6</td><td>Scoot6</td><td><span class="badge bg-warning">En location</span></td><td>70%</td><td>Loix</td><td>25/04</td><td><button class="btn btn-sm btn-warning">Suivi</button></td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- Locations -->
+<div class="row">
+<div class="col-lg-8">
+<div class="card shadow">
+<div class="card-header bg-success text-white"><h4 class="mb-0"><i class="fas fa-users"></i> Locations actives</h4></div>
+<div class="card-body">
+<div class="row g-3">
+<div class="col-md-6"><div class="card h-100"><div class="card-body"><h6>Dupont J.</h6><p>Scoot1 • 55€<br>30/04 → 01/05</p></div></div></div>
+<div class="col-md-6"><div class="card h-100"><div class="card-body"><h6>Leroy M.</h6><p>Scoot6 • 110€<br>01/05 → 03/05</p></div></div></div>
+</div>
+</div>
+</div>
+<div class="col-lg-4">
+<div class="card shadow h-100"><div class="card-body text-center p-4"><h5>📊 Actions</h5>
+<a href="#" class="btn btn-primary w-100 mb-2">Nouvelle location</a>
+<a href="#" class="btn btn-success w-100 mb-2">Export CSV</a>
+<a href="#" class="btn btn-outline-secondary w-100">Mettre à jour</a></div></div>
+</div>
+</div>
+
+<footer class="mt-5 pt-4 border-top text-center text-muted">
+<small>© 2026 Kévin Randazzo | Scooters Île de Ré | <a href="#">Contact</a></small>
+</footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
