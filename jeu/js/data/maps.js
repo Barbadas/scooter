@@ -19,7 +19,7 @@
     // ════════════════════════ PROLOGUE ════════════════════════
     portail_e: {
       name: 'Portail de rang E — Grotte humide',
-      darkness: 0.62,
+      darkness: 0.8,
       rows: [
         '####################################',
         '####################################',
@@ -60,7 +60,7 @@
     // ════════════════════════ CHAPITRE 1 ════════════════════════
     portail_d: {
       name: 'Portail de rang D — Repaire gobelin',
-      darkness: 0.55,
+      darkness: 0.74,
       onEnter: 'entree_d',
       rows: [
         '############################################',

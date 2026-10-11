@@ -106,6 +106,7 @@
           ctx.beginPath(); ctx.ellipse(0, -2, dw * 0.3, dw * 0.1, 0, 0, Math.PI * 2);
           ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
         }
+        if (o.rot) ctx.rotate(o.rot);
         if (flip) ctx.scale(-1, 1);
         if (o.shadow) {
           ctx.shadowColor = '#8b5cf6'; ctx.shadowBlur = 16;
@@ -119,7 +120,17 @@
           ctx.drawImage(tinted(img, sx, sy, sw, sh, dw, dh, '#ffffff', 1), -dw / 2, -dh, dw, dh);
         }
       } else {
-        const paint = G.placeholders[m.ph || key] || G.placeholders._default;
+        const pk = m.ph || key;
+        const paint = G.placeholders[pk] || G.placeholders._default;
+        const gw = G.placeholders.groundW[pk];
+        if (gw && !o.noGround) {
+          ctx.beginPath(); ctx.ellipse(0, -1, size * gw, size * gw * 0.32, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+        }
+        if (o.rot) ctx.rotate(o.rot);
+        // phase de marche / respiration pour les peintres procéduraux
+        o.ph = o.moving ? (o.t || 0) * 15 : undefined;
+        o.idle = (o.t || 0) * 2.2;
         paint(ctx, size, o);
         if (o.flash > 0) {
           ctx.globalCompositeOperation = 'lighter';

@@ -452,7 +452,8 @@ kbd {
   background-position: center;
   overflow-y: auto;
 }
-.title-inner { display: grid; justify-items: center; gap: 18px; text-align: center; width: min(520px, 100%); }
+#title-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.title-inner { position: relative; z-index: 1; display: grid; justify-items: center; gap: 18px; text-align: center; width: min(520px, 100%); }
 .title-eyebrow { font-family: var(--font-display); letter-spacing: 0.3em; font-size: 13px; color: var(--glow); text-shadow: 0 0 10px var(--line); }
 .title-name {
   margin: 0;
@@ -481,7 +482,7 @@ kbd {
   letter-spacing: 0.08em;
 }
 .title-form-btns { display: flex; justify-content: space-between; gap: 10px; }
-.title-foot { font-size: 13px; color: var(--muted); }
+.title-foot { font-size: 13px; color: var(--muted); background: rgba(4, 6, 12, 0.72); padding: 4px 12px; }
 
 /* ---------- Game over / fin de chapitre ---------- */
 #overlay { z-index: 60; background: rgba(2, 4, 10, 0.78); }

@@ -85,15 +85,26 @@
     return e;
   }
 
+  // Le décor fixe (tuiles, ombres de contact, cailloux, cristaux…) est peint une seule fois
   OW.prerender = function () {
+    const sc = Math.min(1.5, window.devicePixelRatio || 1);
     const c = document.createElement('canvas');
-    c.width = this.map.w * T;
-    c.height = this.map.h * T;
+    c.width = Math.ceil(this.map.w * T * sc);
+    c.height = Math.ceil(this.map.h * T * sc);
     const ctx = c.getContext('2d');
+    ctx.scale(sc, sc);
     for (let y = 0; y < this.map.h; y++) {
       for (let x = 0; x < this.map.w; x++) G.assets.drawTile(ctx, this.map.tiles[y][x], x * T, y * T, x, y, this.map);
     }
+    G.placeholders.ambientOcclusion(ctx, this.map, T);
+    const occupied = new Set(this.ents.map(e => e.x + ',' + e.y));
+    occupied.add(this.player.x + ',' + this.player.y);
+    this.decorLights = G.placeholders.decor(ctx, this.map, T, occupied);
+    this.voidTiles = [];
+    for (let y = 0; y < this.map.h; y++) for (let x = 0; x < this.map.w; x++) if (this.map.tiles[y][x] === 'vide') this.voidTiles.push([x, y]);
     this.tileCanvas = c;
+    this.tileScale = sc;
+    this.parts = [];
   };
 
   // ───────────── Requêtes ─────────────
@@ -168,6 +179,7 @@
 
     if (!G.battle.active) this.updateEnemies(dt, this.canControl());
     this.updateCamera();
+    this.updateParts(dt);
   };
 
   OW.tryMove = function (d) {
@@ -184,6 +196,9 @@
 
   OW.onStep = function () {
     const p = this.player;
+    for (let i = 0; i < 3; i++) {
+      this.spawn({ layer: 'world', x: p.px + T / 2 + U.rand(-8, 8), y: p.py + T - 6, vx: U.rand(-14, 14), vy: U.rand(-10, -2), drag: true, life: U.rand(0.35, 0.6), age: 0, r: U.rand(2, 3.5), rgb: '120,130,150' });
+    }
     G.state.steps = (G.state.steps || 0) + 1;
     if (G.state.flags.eveil) G.quests.track('step');
     if (G.state.steps % G.config.REGEN_EVERY_STEPS === 0) G.hunter.heal(1, 1);
@@ -338,13 +353,35 @@
   // ───────────── Rendu ─────────────
   OW.render = function (ctx) {
     const W = G.config.WIDTH, H = G.config.HEIGHT;
+    // Pendant un combat, le décor est figé : on le peint une fois puis on réutilise l'image
+    if (G.battle.active && this.map) {
+      if (!this.snap) {
+        const dpr = ctx.canvas.width / W;
+        this.snap = document.createElement('canvas');
+        this.snap.width = ctx.canvas.width;
+        this.snap.height = ctx.canvas.height;
+        const sc = this.snap.getContext('2d');
+        sc.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.renderScene(sc);
+      }
+      ctx.drawImage(this.snap, 0, 0, W, H);
+      return;
+    }
+    this.snap = null;
+    this.renderScene(ctx);
+  };
+
+  OW.renderScene = function (ctx) {
+    const W = G.config.WIDTH, H = G.config.HEIGHT;
     ctx.fillStyle = '#020307';
     ctx.fillRect(0, 0, W, H);
     if (!this.map) return;
     const cx = Math.round(this.cam.x), cy = Math.round(this.cam.y);
     const sx = Math.max(0, cx), sy = Math.max(0, cy), dx = sx - cx, dy = sy - cy;
-    const sw = Math.min(this.tileCanvas.width - sx, W - dx), sh = Math.min(this.tileCanvas.height - sy, H - dy);
-    if (sw > 0 && sh > 0) ctx.drawImage(this.tileCanvas, sx, sy, sw, sh, dx, dy, sw, sh);
+    const sc = this.tileScale || 1, mw = this.map.w * T, mh = this.map.h * T;
+    const sw = Math.min(mw - sx, W - dx), sh = Math.min(mh - sy, H - dy);
+    if (sw > 0 && sh > 0) ctx.drawImage(this.tileCanvas, sx * sc, sy * sc, sw * sc, sh * sc, dx, dy, sw, sh);
+    this.renderParts(ctx, cx, cy, 'world');
 
     const p = this.player, inBattle = G.battle.active;
     const list = this.ents.filter(e => e.kind !== 'trigger' && this.visible(e) && !(inBattle && G.battle.hideEnt === e));
@@ -355,6 +392,13 @@
       const x = e.px + T / 2 - cx, y = e.py + T - 4 - cy;
       if (x < -150 || x > W + 150 || y < -60 || y > H + 200) continue;
       if (e === p) {
+        if (G.state.flags.eveil) {
+          const a = 0.22 + 0.08 * Math.sin(G.time * 3);
+          const g = ctx.createRadialGradient(x, y - 2, 0, x, y - 2, T * 0.7);
+          g.addColorStop(0, `rgba(63,160,255,${a})`); g.addColorStop(1, 'rgba(63,160,255,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(x - T, y - T * 0.6, T * 2, T * 1.1);
+        }
         G.assets.draw(ctx, 'heros', x, y, { dir: p.dir, t: p.anim, moving: p.moving, glow: !!G.state.flags.eveil });
         continue;
       }
@@ -365,6 +409,7 @@
     }
 
     if (this.data.darkness) this.renderLights(ctx, cx, cy, this.data.darkness);
+    this.renderParts(ctx, cx, cy, 'glow');
 
     // indice d'interaction
     if (this.canControl() && !p.moving) {
@@ -375,12 +420,13 @@
       }
     }
 
-    // vignette
-    const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = v;
-    ctx.fillRect(0, 0, W, H);
+    if (!this.data.darkness) {
+      const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+      v.addColorStop(0, 'rgba(0,0,0,0)');
+      v.addColorStop(1, 'rgba(0,0,0,0.55)');
+      ctx.fillStyle = v;
+      ctx.fillRect(0, 0, W, H);
+    }
   };
 
   OW.drawMark = function (ctx, x, y, text, color) {
@@ -400,28 +446,48 @@
     ctx.restore();
   };
 
+  // Une seule couche demi-résolution : obscurité teintée de brume, trous de lumière,
+  // teinte colorée des sources, vignette. Puis un seul dessin plein écran.
+  const LS = 0.5;
   OW.renderLights = function (ctx, cx, cy, dark) {
     const W = G.config.WIDTH, H = G.config.HEIGHT;
     if (!this.lightCanvas) {
       this.lightCanvas = document.createElement('canvas');
-      this.lightCanvas.width = W;
-      this.lightCanvas.height = H;
+      this.lightCanvas.width = Math.round(W * LS);
+      this.lightCanvas.height = Math.round(H * LS);
     }
     const lc = this.lightCanvas.getContext('2d');
+    lc.setTransform(LS, 0, 0, LS, 0, 0);
+    lc.globalAlpha = 1;
     lc.globalCompositeOperation = 'source-over';
     lc.clearRect(0, 0, W, H);
     lc.fillStyle = `rgba(2,4,14,${dark})`;
     lc.fillRect(0, 0, W, H);
-    lc.globalCompositeOperation = 'destination-out';
+    // brume : éclaircit l'obscurité par endroits
+    if (!fogTex) fogTex = makeFog();
+    const S = fogTex.width;
+    lc.globalCompositeOperation = 'source-atop';
+    for (const [speed, par, alpha] of [[9, 0.6, 0.55], [-5, 0.85, 0.4]]) {
+      lc.globalAlpha = alpha;
+      const ox = -((cx * par + G.time * speed) % S + S) % S, oy = -((cy * par + G.time * speed * 0.3) % S + S) % S;
+      for (let x = ox; x < W; x += S) for (let y = oy; y < H; y += S) lc.drawImage(fogTex, x, y);
+    }
+    lc.globalAlpha = 1;
+
     const p = this.player;
-    const lights = [{ x: p.px + T / 2 - cx, y: p.py + T / 2 - cy, r: G.config.PLAYER_LIGHT * T }];
+    const lights = [{ x: p.px + T / 2 - cx, y: p.py + T / 2 - cy, r: G.config.PLAYER_LIGHT * T, color: G.state.flags.eveil ? '90,150,255' : null }];
     for (const e of this.ents) {
       if (!e.light || !this.visible(e)) continue;
       const fl = e.light.flicker ? 1 + Math.sin(G.time * 9 + e.x) * 0.04 + Math.sin(G.time * 23 + e.y) * 0.03 : 1;
-      lights.push({ x: e.px + T / 2 - cx, y: e.py + T / 2 - cy, r: e.light.r * T * fl, color: e.light.color });
+      lights.push({ x: e.px + T / 2 - cx, y: e.py + T / 2 - cy, r: e.light.r * T * fl, color: e.light.color, hot: e.light.flicker });
     }
-    for (const l of lights) {
-      if (l.x < -l.r || l.x > W + l.r || l.y < -l.r || l.y > H + l.r) continue;
+    for (const l of this.decorLights || []) {
+      const k = 1 + Math.sin(G.time * 2 + l.x * 1.7) * 0.08;
+      lights.push({ x: l.x * T + T / 2 - cx, y: l.y * T + T * 0.4 - cy, r: l.r * T * k, color: l.color });
+    }
+    const vis = lights.filter(l => l.x > -l.r && l.x < W + l.r && l.y > -l.r && l.y < H + l.r);
+    lc.globalCompositeOperation = 'destination-out';
+    for (const l of vis) {
       const g = lc.createRadialGradient(l.x, l.y, 0, l.x, l.y, l.r);
       g.addColorStop(0, 'rgba(0,0,0,1)');
       g.addColorStop(0.55, 'rgba(0,0,0,0.75)');
@@ -429,19 +495,126 @@
       lc.fillStyle = g;
       lc.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2);
     }
-    ctx.drawImage(this.lightCanvas, 0, 0, W, H);
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    for (const l of lights) {
+    // teinte colorée des sources de lumière
+    lc.globalCompositeOperation = 'source-over';
+    for (const l of vis) {
       if (!l.color) continue;
-      const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, l.r * 0.8);
-      g.addColorStop(0, `rgba(${l.color},0.16)`);
+      const r = l.r * 0.85, g = lc.createRadialGradient(l.x, l.y, 0, l.x, l.y, r);
+      g.addColorStop(0, `rgba(${l.color},${l.hot ? 0.24 : 0.18})`);
+      g.addColorStop(0.45, `rgba(${l.color},${l.hot ? 0.09 : 0.06})`);
       g.addColorStop(1, `rgba(${l.color},0)`);
-      ctx.fillStyle = g;
-      ctx.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2);
+      lc.fillStyle = g;
+      lc.fillRect(l.x - r, l.y - r, r * 2, r * 2);
+    }
+    // vignette
+    const v = lc.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.5)');
+    lc.fillStyle = v;
+    lc.fillRect(0, 0, W, H);
+    ctx.drawImage(this.lightCanvas, 0, 0, W, H);
+  };
+
+  // ───────────── Particules (braises, poussière, portails, gouffre) ─────────────
+  OW.spawn = function (p) {
+    if (this.parts.length < 240) this.parts.push(p);
+  };
+  OW.updateParts = function (dt) {
+    if (!this.parts) return;
+    const W = G.config.WIDTH, H = G.config.HEIGHT, cx = this.cam.x, cy = this.cam.y;
+    const onScreen = (x, y, m = 60) => x > cx - m && x < cx + W + m && y > cy - m && y < cy + H + m;
+    const R = (rate) => Math.random() < rate * dt;
+    for (const e of this.ents) {
+      if (!this.visible(e)) continue;
+      const ex = e.px + T / 2, ey = e.py + T / 2;
+      if (!onScreen(ex, ey)) continue;
+      if (e.light && e.light.flicker && R(9)) {
+        this.spawn({ layer: 'glow', x: ex + U.rand(-8, 8), y: e.py + T * 0.1, vx: U.rand(-10, 10), vy: U.rand(-55, -30), life: U.rand(0.7, 1.4), age: 0, r: U.rand(1, 2.2), rgb: Math.random() < 0.5 ? '255,170,70' : '255,220,140', wob: Math.random() * 6 });
+      }
+      if (e.kind === 'portal' && R(10)) {
+        const a = Math.random() * Math.PI * 2;
+        this.spawn({ layer: 'glow', x: ex + Math.cos(a) * T * 0.55, y: e.py + T * 0.15 + Math.sin(a) * T * 0.75, vx: -Math.cos(a) * 18, vy: -Math.sin(a) * 18 - 14, life: U.rand(0.8, 1.5), age: 0, r: U.rand(1, 2), rgb: '120,200,255' });
+      }
+    }
+    for (const l of this.decorLights || []) {
+      const lx = l.x * T + T / 2, ly = l.y * T + T * 0.4;
+      if (onScreen(lx, ly) && R(1.2)) this.spawn({ layer: 'glow', x: lx + U.rand(-10, 10), y: ly + U.rand(-6, 6), vx: U.rand(-4, 4), vy: U.rand(-16, -6), life: U.rand(1, 2), age: 0, r: U.rand(0.8, 1.6), rgb: l.color });
+    }
+    // poussière en suspension dans la lumière du joueur
+    const p = this.player;
+    if (R(7)) this.spawn({ layer: 'glow', dust: true, x: p.px + T / 2 + U.rand(-T * 4, T * 4), y: p.py + T / 2 + U.rand(-T * 3, T * 3), vx: U.rand(-6, 6), vy: U.rand(-5, 3), life: U.rand(2.5, 4.5), age: 0, r: U.rand(0.6, 1.3), rgb: '200,215,255' });
+    if (G.state.flags.eveil && R(3)) this.spawn({ layer: 'glow', x: p.px + T / 2 + U.rand(-10, 10), y: p.py + T * 0.85, vx: U.rand(-5, 5), vy: U.rand(-40, -22), life: U.rand(0.6, 1.1), age: 0, r: U.rand(0.8, 1.6), rgb: '90,170,255' });
+    // lueurs qui montent du gouffre
+    if (this.voidTiles && this.voidTiles.length && R(5)) {
+      const [vx, vy] = U.pick(this.voidTiles);
+      const x = vx * T + Math.random() * T, y = vy * T + Math.random() * T;
+      if (onScreen(x, y)) this.spawn({ layer: 'glow', x, y, vx: U.rand(-3, 3), vy: U.rand(-14, -6), life: U.rand(1.5, 3), age: 0, r: U.rand(0.7, 1.4), rgb: '110,150,255' });
+    }
+    for (const q of this.parts) {
+      q.age += dt;
+      q.x += (q.vx + (q.wob ? Math.sin(q.age * 8 + q.wob) * 12 : 0)) * dt;
+      q.y += q.vy * dt;
+      if (q.drag) { q.vx *= 1 - dt * 3; q.vy *= 1 - dt * 3; }
+    }
+    this.parts = this.parts.filter(q => q.age < q.life);
+  };
+  OW.renderParts = function (ctx, cx, cy, layer) {
+    if (!this.parts || !this.parts.length) return;
+    const p = this.player, lx = p.px + T / 2, ly = p.py + T / 2, lr = G.config.PLAYER_LIGHT * T;
+    ctx.save();
+    if (layer === 'glow') ctx.globalCompositeOperation = 'lighter';
+    for (const q of this.parts) {
+      if (q.layer !== layer) continue;
+      const k = q.age / q.life;
+      let a = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
+      if (q.dust) a *= Math.max(0, 1 - Math.hypot(q.x - lx, q.y - ly) / lr) * (0.5 + 0.5 * Math.sin(q.age * 5));
+      if (a <= 0.01) continue;
+      const x = q.x - cx, y = q.y - cy;
+      if (layer === 'world') {
+        ctx.fillStyle = `rgba(${q.rgb},${0.35 * a})`;
+        ctx.beginPath(); ctx.arc(x, y, q.r * (1 + k * 1.5), 0, Math.PI * 2); ctx.fill();
+      } else {
+        const r = q.r * 3;
+        ctx.globalAlpha = Math.min(1, a);
+        ctx.drawImage(glowSprite(q.rgb), x - r, y - r, r * 2, r * 2);
+      }
     }
     ctx.restore();
   };
 
+  // Halo lumineux pré-rendu par couleur
+  const glowCache = {};
+  function glowSprite(rgbStr) {
+    let c = glowCache[rgbStr];
+    if (c) return c;
+    c = document.createElement('canvas');
+    c.width = c.height = 32;
+    const x = c.getContext('2d'), g = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+    g.addColorStop(0, `rgba(${rgbStr},0.95)`);
+    g.addColorStop(0.35, `rgba(${rgbStr},0.38)`);
+    g.addColorStop(1, `rgba(${rgbStr},0)`);
+    x.fillStyle = g;
+    x.fillRect(0, 0, 32, 32);
+    return (glowCache[rgbStr] = c);
+  }
+  OW.glowSprite = glowSprite;
+
+  // Brume qui dérive lentement (texture générée une fois, raccord sans couture)
+  let fogTex = null;
+  function makeFog() {
+    const S = 384, c = document.createElement('canvas');
+    c.width = c.height = S;
+    const x = c.getContext('2d');
+    for (let i = 0; i < 46; i++) {
+      const px = Math.random() * S, py = Math.random() * S, r = 30 + Math.random() * 70, a = 0.05 + Math.random() * 0.08;
+      for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
+        const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r);
+        g.addColorStop(0, `rgba(150,180,230,${a})`); g.addColorStop(1, 'rgba(150,180,230,0)');
+        x.fillStyle = g;
+        x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2);
+      }
+    }
+    return c;
+  }
   G.scenes.overworld = OW;
 })();
