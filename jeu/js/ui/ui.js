@@ -6,7 +6,10 @@
 
   // ───────────── Menu générique (clavier + souris + tactile) ─────────────
   // items : [{ label, sub, desc, value, disabled }]
+  // opts.back : ajoute un bouton « Retour » (renvoie null, comme Échap / B)
+  const BACK = { back: true };
   ui.menu = function (el, items, opts = {}) {
+    if (opts.back) items = items.concat([{ label: '◂ Retour', sub: 'Échap', value: BACK, back: true, desc: 'Revenir au menu précédent.' }]);
     return new Promise(resolve => {
       el.innerHTML = '';
       el.hidden = false;
@@ -23,7 +26,7 @@
       const btns = items.map((it, i) => {
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'menu-item' + (it.disabled ? ' disabled' : '');
+        b.className = 'menu-item' + (it.disabled ? ' disabled' : '') + (it.back ? ' back' : '');
         b.innerHTML = `<span class="mi-label">${U.esc(it.label)}</span>${it.sub ? `<span class="mi-sub">${U.esc(it.sub)}</span>` : ''}`;
         b.addEventListener('click', () => { idx = i; refresh(); choose(i); });
         b.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { idx = i; refresh(); } });
@@ -37,7 +40,7 @@
       }
       function choose(i) {
         const it = items[i];
-        if (it && !it.disabled) finish(it.value);
+        if (it && !it.disabled) finish(it.back ? null : it.value);
       }
       function finish(v) {
         if (done) return;

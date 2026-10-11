@@ -218,19 +218,24 @@
         const t = await this.pickTarget(u, 'enemy');
         if (t) return { type: 'skill', skill: G.data.skills.attaque, targets: [t] };
       } else if (cmd === 'skills') {
-        const sid = await G.ui.menu(menu, u.skills.map(id => {
-          const s = G.data.skills[id], cost = s.cost || 0;
-          return { label: s.name, sub: `${cost} PM`, value: id, disabled: cost > u.mp, desc: cost > u.mp ? `PM insuffisants. ${s.desc || ''}` : (s.desc || '') };
-        }), { title: 'Compétences', descEl: desc, columns: 2 });
-        if (!sid) continue;
-        const sk = G.data.skills[sid];
-        const targets = await this.chooseTargets(u, sk);
-        if (targets) return { type: 'skill', skill: sk, targets };
+        // « Retour » sur la cible ramène à la liste des compétences, puis au menu principal
+        for (;;) {
+          const sid = await G.ui.menu(menu, u.skills.map(id => {
+            const s = G.data.skills[id], cost = s.cost || 0;
+            return { label: s.name, sub: `${cost} PM`, value: id, disabled: cost > u.mp, desc: cost > u.mp ? `PM insuffisants. ${s.desc || ''}` : (s.desc || '') };
+          }), { title: 'Compétences', descEl: desc, columns: 2, back: true });
+          if (!sid) break;
+          const sk = G.data.skills[sid];
+          const targets = await this.chooseTargets(u, sk);
+          if (targets) return { type: 'skill', skill: sk, targets };
+        }
       } else if (cmd === 'items') {
-        const iid = await G.ui.menu(menu, inv.map(([id, q]) => ({ label: G.data.items[id].name, sub: `× ${q}`, value: id, desc: G.data.items[id].desc })), { title: 'Objets', descEl: desc, columns: 2 });
-        if (!iid) continue;
-        const t = await this.pickTarget(u, 'ally');
-        if (t) return { type: 'item', item: iid, targets: [t] };
+        for (;;) {
+          const iid = await G.ui.menu(menu, inv.map(([id, q]) => ({ label: G.data.items[id].name, sub: `× ${q}`, value: id, desc: G.data.items[id].desc })), { title: 'Objets', descEl: desc, columns: 2, back: true });
+          if (!iid) break;
+          const t = await this.pickTarget(u, 'ally');
+          if (t) return { type: 'item', item: iid, targets: [t] };
+        }
       } else if (cmd === 'defend') {
         return { type: 'defend' };
       } else if (cmd === 'flee') {
@@ -258,7 +263,7 @@
     this.targeting = list;
     const v = await G.ui.menu($('battle-menu'), list.map((x, i) => ({
       label: x.name, sub: `${x.hp}/${x.maxHp} PV`, value: i, desc: this.statusText(x) || (x.data && x.data.rank ? `Rang ${x.data.rank}` : ''),
-    })), { title: 'Choisir une cible', descEl: $('battle-desc'), columns: 2, onFocus: it => { this.cursor = it ? list[it.value] : null; } });
+    })), { title: 'Choisir une cible', descEl: $('battle-desc'), columns: 2, back: true, onFocus: it => { this.cursor = it && !it.back ? list[it.value] : null; } });
     this.targeting = null;
     this.cursor = null;
     return v == null ? null : list[v];

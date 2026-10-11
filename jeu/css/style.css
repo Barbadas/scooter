@@ -287,6 +287,8 @@ kbd {
 .menu-desc { font-size: 13px; color: var(--muted); min-height: 1.2em; padding: 0 8px; }
 .menu.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 6px; }
 .menu.cols-2 .menu-head { grid-column: 1 / -1; }
+.menu-item.back { color: var(--muted); }
+.menu.cols-2 .menu-item.back { grid-column: 1 / -1; }
 #battle-menu .menu-item { padding-block: 3px; font-size: 15px; }
 
 /* ---------- Modales ---------- */
