@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Monarque des Ombres</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow+Semi+Condensed:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- GAME-BODY:START (ce bloc est réutilisé tel quel pour l'aperçu Artifact) -->
+  <div id="app">
+    <div id="game">
+      <div id="stage">
+        <canvas id="screen" width="960" height="576" aria-label="Écran de jeu"></canvas>
+        <div id="banner" hidden></div>
+        <div id="fader"></div>
+      </div>
+
+      <div id="hud" hidden>
+        <div class="hud-left">
+          <div class="hud-name"><span id="hud-name">—</span> <span class="hud-lvl" id="hud-lvl"></span></div>
+          <div class="hud-bar"><span>PV</span><div class="bar hp"><i id="hud-hp"></i></div><b id="hud-hp-txt"></b></div>
+          <div class="hud-bar"><span>PM</span><div class="bar mp"><i id="hud-mp"></i></div><b id="hud-mp-txt"></b></div>
+        </div>
+        <div class="hud-right">
+          <div class="hud-map" id="hud-map"></div>
+          <button type="button" id="hud-system" class="sys-btn" hidden>SYSTÈME <kbd>Tab</kbd></button>
+        </div>
+      </div>
+
+      <div id="dock">
+        <div id="dock-idle" hidden>
+          <span id="dock-idle-map"></span>
+          <span>A : interagir · B : retour · SYS : Système</span>
+        </div>
+        <div id="dialogue" class="syswin" hidden>
+          <div class="dlg-portrait" id="dlg-portrait" hidden></div>
+          <div class="dlg-body">
+            <div class="dlg-name" id="dlg-name"></div>
+            <div class="dlg-text" id="dlg-text"></div>
+          </div>
+          <div class="dlg-next" aria-hidden="true">▼</div>
+        </div>
+
+        <div id="battle-ui" class="syswin" hidden>
+          <div id="party-status"></div>
+          <div class="battle-cmd">
+            <div id="battle-menu" class="menu"></div>
+            <div id="battle-desc" class="menu-desc"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="touch" aria-hidden="true">
+        <div class="dpad">
+          <button type="button" data-key="up" class="up">▲</button>
+          <button type="button" data-key="left" class="left">◀</button>
+          <button type="button" data-key="right" class="right">▶</button>
+          <button type="button" data-key="down" class="down">▼</button>
+        </div>
+        <div class="tbtns">
+          <button type="button" data-key="menu" class="t-menu">SYS</button>
+          <button type="button" data-key="cancel" class="t-b">B</button>
+          <button type="button" data-key="ok" class="t-a">A</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <div id="sysmsg" class="modal" hidden>
+    <div class="syswin sysmsg-box">
+      <div class="sys-title" id="sysmsg-title">NOTIFICATION</div>
+      <div class="sysmsg-text" id="sysmsg-text"></div>
+      <div class="menu" id="sysmsg-menu"></div>
+      <div class="sysmsg-ok" id="sysmsg-ok">[ OK ]</div>
+    </div>
+  </div>
+
+  <div id="system" class="modal" hidden>
+    <div class="syswin system-box">
+      <div class="system-tabs" id="system-tabs"></div>
+      <div class="system-content" id="system-content"></div>
+      <div class="system-foot">
+        <button type="button" id="system-save" class="sys-btn">Sauvegarder</button>
+        <span class="system-help">◀ ▶ onglets · ▲ ▼ choisir · Espace valider · Échap fermer</span>
+        <button type="button" id="system-close" class="sys-btn">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="title" class="modal title-screen" hidden>
+    <div class="title-inner">
+      <div class="title-eyebrow">[ Le Système vous a choisi ]</div>
+      <h1 class="title-name">Monarque<br>des Ombres</h1>
+      <div class="syswin title-menu">
+        <div id="title-main" class="menu"></div>
+        <form id="title-nameform" hidden>
+          <label for="title-nameinput" class="sys-title">Entrez votre nom</label>
+          <input id="title-nameinput" maxlength="14" autocomplete="off" spellcheck="false">
+          <div class="title-form-btns">
+            <button type="button" class="sys-btn" id="title-back">Retour</button>
+            <button type="submit" class="sys-btn primary">Confirmer</button>
+          </div>
+        </form>
+      </div>
+      <div class="title-foot">Flèches / ZQSD · Espace · Tab — RPG au tour par tour, inspiré de Solo Leveling</div>
+    </div>
+  </div>
+
+  <div id="overlay" class="modal" hidden>
+    <div class="syswin overlay-box">
+      <div class="sys-title" id="overlay-title"></div>
+      <div class="overlay-sub" id="overlay-sub"></div>
+      <div class="menu" id="overlay-menu"></div>
+    </div>
+  </div>
+  <!-- GAME-BODY:END -->
+
+  <!-- Moteur -->
+  <script src="js/core/config.js"></script>
+  <script src="js/core/util.js"></script>
+  <script src="js/core/input.js"></script>
+  <script src="js/core/assets.js"></script>
+  <script src="js/core/placeholders.js"></script>
+  <script src="js/core/save.js"></script>
+  <!-- Données du jeu (c'est ici qu'on ajoute histoire, pouvoirs, monstres, cartes) -->
+  <script src="js/data/items.js"></script>
+  <script src="js/data/skills.js"></script>
+  <script src="js/data/enemies.js"></script>
+  <script src="js/data/quests.js"></script>
+  <script src="js/data/maps.js"></script>
+  <script src="js/data/story.js"></script>
+  <!-- Systèmes -->
+  <script src="js/systems/hunter.js"></script>
+  <script src="js/systems/quests.js"></script>
+  <script src="js/systems/combat.js"></script>
+  <script src="js/systems/events.js"></script>
+  <!-- Interface -->
+  <script src="js/ui/ui.js"></script>
+  <script src="js/ui/system-window.js"></script>
+  <!-- Scènes -->
+  <script src="js/scenes/overworld.js"></script>
+  <script src="js/scenes/battle.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
