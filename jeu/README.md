@@ -1,6 +1,7 @@
-# Monarque des Ombres
+# Terres de Cendre
 
-RPG au tour par tour en vue de dessus, inspiré de *Solo Leveling*.
+RPG de survie au tour par tour, vue de dessus. France, 2061 : douze ans après la Dernière Guerre,
+les survivants s'organisent en clans et se battent pour reprendre les ruines.
 HTML + JavaScript pur : aucune installation, aucun build.
 
 ## Jouer
@@ -9,46 +10,72 @@ HTML + JavaScript pur : aucune installation, aucun build.
 - Déplacement : **flèches** ou **ZQSD** (WASD en QWERTY)
 - Interagir / valider : **Espace** ou **Entrée**
 - Retour : **Échap**
-- Fenêtre du Système : **Tab** ou **M** (après l'éveil)
+- Carnet (statut, armes, sac, missions, territoires) : **Tab** ou **M**
 - Sur téléphone : manette tactile sous l'écran.
+
+## Univers
+
+- **Lyon en ruines.** Le héros est récupérateur du **Clan du Corbeau**.
+- **Clans rivaux** : Vipères (pillards, à l'ouest du fleuve), Ours (Croix-Rousse), et un clan inconnu à Fourvière.
+- **Territoires** : chaque quartier repris passe sous la bannière du clan (onglet *Territoires* du carnet).
+- **Plus tard** : des portails s'ouvrent vers un autre monde peuplé de monstres, et des **artefacts**
+  permettent de se transformer en bête humanoïde, en plein combat.
 
 ## Contenu actuel
 
 | Partie | Contenu |
 |---|---|
-| Prologue | Grotte de rang E, Mira, rats géants, temple caché, Gardien, **éveil du Système** |
-| Chapitre 1 | Repaire gobelin (rang D), loups, gobelins, archers, coffres, boss **Kargash** |
-| Système | Niveaux, 5 stats à répartir (FOR, VIT, AGI, INT, PER), compétences, inventaire, quêtes |
-| Combat | Tour par tour sur la carte, ordre selon la vitesse, critiques, esquive, défense, fuite, saignement, buffs/debuffs |
-| Prêt pour la suite | Extraction d'ombre + armée des ombres (mécanique codée, pas encore débloquée dans l'histoire) |
+| Prologue | Ruines de Vaise : Mira, chiens errants, station de métro, embuscade de **Kross**, duel contre **Rico** |
+| Chapitre 1 | Vaise-Sud, territoire des Vipères : pillards, tireurs, tireur d'élite, boss **Kross** au château d'eau |
+| Fin du chapitre 1 | Territoire repris, puis une lumière violette déchire le ciel de Fourvière (le premier portail) |
 
-### Pouvoirs
+### Armes
 
-| Pouvoir | Déblocage |
+| Arme | Avantages | Inconvénients |
+|---|---|---|
+| Couteau | aucune munition, critique +15 %, saignement | corps à corps, faible contre les armures |
+| Pistolet 9 mm | à distance, précis, munitions courantes | dégâts moyens, chargeur de 8 |
+| Fusil à lunette | dégâts très élevés, ignore 50 % d'armure | chargeur de 4, munitions rares, aucune esquive au tour suivant |
+| Mitrailleuse | rafale de 6 balles sur tous les ennemis | imprécise, vide vite le chargeur, lourde (vitesse −40 %) |
+
+Les armes à feu ont un **chargeur** et une **réserve** : recharger prend le tour. Les chargeurs se remplissent après chaque combat.
+
+### Techniques
+
+| Technique | Déblocage |
 |---|---|
-| Frappe rapide (2 coups) | Éveil (prologue) |
-| Coup vital (190 %, critique +25 %) | Niveau 3 |
-| Soif de sang (ATQ/DÉF ennemis ↓) | Victoire sur Kargash (chapitre 1) |
-| Extraction d'ombre | Chapitre 2 — à écrire |
+| Lame double (2 coups de couteau) | Prologue, après l'embuscade |
+| Premiers soins | Niveau 2 |
+| Coup de grâce | Niveau 3 |
+| Intimidation | Niveau 5 |
+
+### Transformation (prête, pas encore débloquée dans l'histoire)
+
+- Un artefact équipé remplit la jauge **BÊTE** quand tu frappes ou encaisses.
+- Jauge pleine → option **Transformation** dans le menu de combat.
+- **Artefact du Loup** → *Loup-garou* pendant 4 tours : ATQ ×1,6, DÉF ×1,3, vitesse ×1,4, soin 25 %, attaques bestiales (Griffes, Crocs, Hurlement).
 
 ## Structure
 
 ```
 jeu/
 ├── index.html            page du jeu
-├── css/style.css         interface « fenêtres du Système »
+├── css/style.css         interface (tôle rivetée, accents ambre)
 ├── assets/               tes images (voir plus bas)
 └── js/
-    ├── core/             moteur : config, entrées, images, sauvegarde
+    ├── core/             moteur : config, entrées, images, visuels provisoires, sauvegarde
     ├── data/             ← tout le contenu du jeu se modifie ici
     │   ├── story.js      histoire, dialogues, chapitres, événements
-    │   ├── skills.js     pouvoirs (joueur et monstres)
-    │   ├── enemies.js    monstres et boss
+    │   ├── weapons.js    armes (dégâts, chargeur, avantages / inconvénients)
+    │   ├── skills.js     techniques (joueur, ennemis, forme bestiale)
+    │   ├── artifacts.js  artefacts de transformation
+    │   ├── clans.js      clans et territoires
+    │   ├── enemies.js    ennemis et boss
     │   ├── maps.js       cartes en texte (1 caractère = 1 case)
-    │   ├── quests.js     quêtes du Système
-    │   └── items.js      objets
-    ├── systems/          règles : chasseur, combat, quêtes, événements
-    ├── ui/               dialogues, menus, fenêtre du Système
+    │   ├── quests.js     missions
+    │   └── items.js      objets et munitions
+    ├── systems/          règles : héros, armes, combat, missions, événements
+    ├── ui/               dialogues, menus, carnet
     └── scenes/           exploration (overworld.js) et combat (battle.js)
 ```
 
@@ -65,30 +92,36 @@ heros: { src: 'assets/sprites/heros.png', size: 1.3 },
 
 | Clé | Quoi | Format conseillé |
 |---|---|---|
-| `heros`, `pnj_mira` | personnages | PNG transparent, regard vers la droite |
-| `rat_geant`, `loup`, `gobelin`, `gobelin_archer`, `chef_gobelin`, `gardien`, `gardien_fissure` | monstres | PNG transparent |
-| `statue`, `autel`, `portail`, `coffre`, `coffre_ouvert`, `brasero`, `tente` | décor | PNG transparent |
-| `tuile_sol`, `tuile_sol2`, `tuile_temple`, `tuile_mur`, `tuile_vide` | sols et murs | 48 × 48 px |
-| `portrait_heros`, `portrait_mira`, `portrait_kargash` | portraits de dialogue | carré, 256 × 256 |
+| `heros`, `pnj_mira`, `forme_loup` | personnages | PNG transparent, regard vers la droite |
+| `chien`, `pillard`, `pillard_tireur`, `tireur_elite`, `kross` | ennemis | PNG transparent |
+| `caisse`, `caisse_ouverte`, `caisse_medocs`, `baril`, `epave`, `barricade`, `abri`, `pilier`, `escalier`, `drapeau`, `portail` | décor | PNG transparent |
+| `tuile_sol`, `tuile_sol2`, `tuile_carrelage`, `tuile_mur`, `tuile_vide` | bitume, gravats, métro, ruines, cratère | 48 × 48 px |
+| `portrait_heros`, `portrait_mira`, `portrait_chef`, `portrait_kross` | portraits de dialogue | carré, 256 × 256 |
 | `fond_titre` | fond de l'écran titre | 1920 × 1080 |
 
 **Animations** : planche de sprites (cases de même taille). Exemple dans l'en-tête de `assets.js` :
 `walk_down`, `walk_up`, `walk_right` (gauche = miroir automatique), `attack`, `hurt`…
 
-## Ajouter un pouvoir
+## Ajouter une arme
 
-Dans `js/data/skills.js` :
+Dans `js/data/weapons.js` :
 
 ```js
-dague_ombre: {
-  name: "Dague de l'ombre",
-  desc: 'Projette une dague spectrale : 150 % de dégâts magiques.',
-  cost: 8, target: 'enemy', anim: 'ranged', color: '#8b5cf6',
-  effects: [{ type: 'damage', power: 1.5, magic: true }],
+fusil_pompe: {
+  name: 'Fusil à pompe', kind: 'gun', sprite: 'rifle',
+  ammo: 'mun_pompe', mag: 2, perShot: 1, power: 1.4, hits: 1, spread: true, acc: 0.85,
+  pros: ['Touche tous les ennemis', 'Gros dégâts'],
+  cons: ['Chargeur de 2', 'Courte portée'],
 },
 ```
 
-Puis le débloquer, soit par niveau (`unlockLevel: 6`), soit dans l'histoire (`{ learn: 'dague_ombre' }` dans `story.js`).
+Ajouter la munition `mun_pompe` dans `items.js` (`ammo: true`), puis donner l'arme dans l'histoire : `{ weapon: 'fusil_pompe', ammo: 6 }` dans `story.js`.
+
+## Ajouter un artefact
+
+Dans `js/data/artifacts.js`, sur le modèle du loup : `form.mult` (multiplicateurs), `form.turns`,
+`form.skills` (techniques marquées `beast: true` dans `skills.js`), `form.sprite`.
+Le donner : `{ artifact: 'ours' }` dans `story.js`.
 
 ## Écrire la suite de l'histoire
 
@@ -96,12 +129,12 @@ Dans `js/data/story.js`, chaque événement est une liste d'étapes :
 
 ```js
 mon_evenement: [
-  { narrate: 'La porte s’ouvre lentement…' },
+  { narrate: 'La lumière violette pulse au sommet de la colline…' },
   { say: 'Mira', portrait: 'mira', text: 'Tu es encore vivant, {nom} ?' },
-  { system: 'Quête de changement de classe disponible.', title: 'Quête' },
-  { battle: ['chevalier_mort'], noFlee: true, intro: 'Le chevalier maudit' },
-  { learn: 'extraction' },
-  { flag: 'classe_debloquee' },
+  { battle: ['pillard', 'pillard_tireur'], noFlee: true, intro: 'Embuscade' },
+  { artifact: 'loup' },
+  { territory: { id: 'fourviere', owner: 'corbeau' } },
+  { flag: 'portail_vu' },
 ],
 ```
 
@@ -112,8 +145,9 @@ La liste complète des étapes est en tête de `story.js`.
 Dans la console du navigateur (F12) :
 
 ```js
-G.debug.xp(200)               // gagner de l'expérience
-G.debug.learn('extraction')   // débloquer un pouvoir
-G.debug.shadow('gobelin')     // ajouter une ombre à l'armée
-G.debug.go('portail_d')       // changer de carte
+G.debug.xp(200)                 // gagner de l'expérience
+G.debug.weapon('fusil', 12)     // obtenir une arme + munitions
+G.debug.give('grenade', 2)      // obtenir un objet
+G.debug.artifact('loup')        // obtenir l'artefact du loup
+G.debug.go('vaise_sud')         // changer de carte
 ```
