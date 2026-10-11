@@ -1,4 +1,4 @@
-/* Le survivant : statistiques, niveaux, techniques, armes, munitions, artefacts.
+/* Le survivant : statistiques, niveaux, techniques, armes, équipement, munitions, artefacts.
    (Le nom de fichier « hunter » est historique : l'objet G.hunter gère le personnage.) */
 G.hunter = {
   create(name) {
@@ -21,15 +21,16 @@ G.hunter = {
   // Statistiques de combat calculées (mp = énergie)
   derived(h) {
     const s = h.stats, L = h.level;
+    const b = G.state && G.state.hunter === h ? G.gear.bonus() : {};
     return {
-      maxHp: 50 + s.end * 5 + (L - 1) * 8,
-      maxMp: 20 + s.ins * 2 + (L - 1) * 2,
-      atk: s.for * 2,
-      tir: s.pre * 2,
-      def: Math.round(s.end * 0.5 + L),
-      spd: s.agi,
-      crit: Math.min(0.6, 0.04 + s.ins * 0.006),
-      eva: Math.min(0.4, s.agi * 0.004),
+      maxHp: 50 + s.end * 5 + (L - 1) * 8 + (b.hp || 0),
+      maxMp: 20 + s.ins * 2 + (L - 1) * 2 + (b.mp || 0),
+      atk: s.for * 2 + (b.atk || 0),
+      tir: s.pre * 2 + (b.tir || 0),
+      def: Math.round(s.end * 0.5 + L) + (b.def || 0),
+      spd: Math.max(1, s.agi + (b.spd || 0)),
+      crit: Math.min(0.6, 0.04 + s.ins * 0.006 + (b.crit || 0)),
+      eva: Math.min(0.45, s.agi * 0.004 + (b.eva || 0)),
       acc: 1 + (s.pre - 10) * 0.01,
     };
   },
@@ -124,15 +125,34 @@ G.inventory = {
   },
 };
 
-// Armes et munitions
+// Armes et munitions (avec niveaux d'amélioration achetés à l'armurerie)
+const WEAPON_MAX_LV = 5;
+const wcache = {};
 G.weapons = {
-  def(id) { return G.data.weapons[id]; },
+  MAX_LV: WEAPON_MAX_LV,
+  level(id) { return (G.state.weapons[id] || {}).lv || 0; },
+  // Caractéristiques effectives (niveau compris)
+  def(id) {
+    const base = G.data.weapons[id];
+    if (!base || !G.state) return base;
+    const lv = this.level(id);
+    if (!lv) return base;
+    const k = id + ':' + lv;
+    if (wcache[k]) return wcache[k];
+    const w = Object.assign({}, base);
+    w.power = Math.round(base.power * (1 + 0.12 * lv) * 100) / 100;
+    w.acc = Math.min(1.15, base.acc + 0.02 * lv);
+    w.crit = (base.crit || 0) + 0.01 * lv;
+    if (base.mag) w.mag = base.mag + Math.floor(lv / 2) * (base.magStep || 1);
+    if (base.bleed) w.bleed = Object.assign({}, base.bleed, { chance: Math.min(0.6, base.bleed.chance + 0.04 * lv) });
+    return (wcache[k] = w);
+  },
   owned() { return Object.keys(G.data.weapons).filter(id => G.state.weapons[id]); },
   give(id, ammo = 0) {
     const w = this.def(id);
     if (!w) return;
     if (!G.state.weapons[id]) {
-      G.state.weapons[id] = { mag: w.mag || 0 };
+      G.state.weapons[id] = { mag: w.mag || 0, lv: 0 };
       G.ui.notify(`${w.name} — ${w.pros.join(' · ')}`, 'skill', 'Nouvelle arme');
       if (w.kind === 'gun') G.state.equipped = id;
     }
@@ -140,6 +160,20 @@ G.weapons = {
       G.inventory.add(w.ammo, ammo);
       G.ui.notify(`${G.data.items[w.ammo].name} × ${ammo}`, 'hint', 'Munitions');
     }
+  },
+  // Coût du prochain niveau : ferraille + pièces détachées
+  upgradeCost(id) {
+    const lv = this.level(id), base = G.data.weapons[id];
+    if (lv >= WEAPON_MAX_LV) return null;
+    return { gold: Math.round((base.upgrade || 30) * (lv + 1) * (1 + lv * 0.25)), pieces: lv + 1 };
+  },
+  upgrade(id) {
+    const c = this.upgradeCost(id);
+    if (!c || G.state.gold < c.gold || G.inventory.count('pieces') < c.pieces) return false;
+    G.state.gold -= c.gold;
+    G.inventory.remove('pieces', c.pieces);
+    G.state.weapons[id].lv = this.level(id) + 1;
+    return true;
   },
   reserve(id) { const w = this.def(id); return w && w.ammo ? G.inventory.count(w.ammo) : 0; },
   mag(id) { return (G.state.weapons[id] || {}).mag || 0; },
@@ -161,8 +195,85 @@ G.weapons = {
     const w = this.def(id);
     return w.kind === 'melee' ? '∞' : `${this.mag(id)}/${w.mag} · ${this.reserve(id)}`;
   },
+  // Nom avec niveau : « Pistolet 9 mm +2 »
+  label(id) { const lv = this.level(id); return this.def(id).name + (lv ? ` +${lv}` : ''); },
   // Dessin de l'arme tenue en main hors combat
   shown() { const id = G.state.equipped; return id && G.state.weapons[id] ? this.def(id).sprite : 'knife'; },
+};
+
+// Équipement (tête, corps, pieds) — acheté et amélioré à la tente d'équipement
+const GEAR_MAX_LV = 4;
+G.gear = {
+  MAX_LV: GEAR_MAX_LV,
+  owned() { return Object.keys(G.data.gear).filter(id => G.state.gear[id]); },
+  has(id) { return !!G.state.gear[id]; },
+  level(id) { return (G.state.gear[id] || {}).lv || 0; },
+  give(id) {
+    const g = G.data.gear[id];
+    if (!g) return;
+    if (!G.state.gear[id]) G.state.gear[id] = { lv: 0 };
+    G.ui.notify(`${g.name} — ${this.statText(id)}`, 'skill', 'Équipement');
+    if (!G.state.equip[g.slot]) this.equip(id);
+  },
+  // Caractéristiques effectives (+25 % par niveau)
+  stats(id, lv) {
+    const g = G.data.gear[id], L = lv != null ? lv : this.level(id), out = {};
+    for (const k in g.stats) {
+      const v = g.stats[k] * (1 + 0.25 * L);
+      out[k] = k === 'eva' || k === 'crit' ? Math.round(v * 1000) / 1000 : (g.stats[k] < 0 ? g.stats[k] : Math.round(v));
+    }
+    return out;
+  },
+  statText(id, lv) {
+    const st = this.stats(id, lv), N = { hp: 'PV', mp: 'ÉN', def: 'DÉF', spd: 'VIT', eva: 'ESQ', crit: 'CRIT', atk: 'ATQ', tir: 'TIR' };
+    return Object.entries(st).map(([k, v]) => `${N[k] || k} ${v > 0 ? '+' : ''}${k === 'eva' || k === 'crit' ? Math.round(v * 100) + ' %' : v}`).join(' · ');
+  },
+  equipped(slot) { const id = G.state.equip[slot]; return id && G.state.gear[id] ? id : null; },
+  equip(id) {
+    const g = G.data.gear[id];
+    if (!g || !G.state.gear[id]) return;
+    const before = G.hunter.derived(G.state.hunter);
+    G.state.equip[g.slot] = id;
+    this.after(before);
+  },
+  unequip(slot) {
+    const before = G.hunter.derived(G.state.hunter);
+    delete G.state.equip[slot];
+    this.after(before);
+  },
+  // Garde les PV / ÉN cohérents quand le maximum change
+  after(before) {
+    const h = G.state.hunter, d = G.hunter.derived(h);
+    if (d.maxHp > before.maxHp) h.hp += d.maxHp - before.maxHp;
+    if (d.maxMp > before.maxMp) h.mp += d.maxMp - before.maxMp;
+    G.hunter.clamp();
+  },
+  bonus() {
+    const out = {};
+    if (!G.state || !G.state.equip) return out;
+    for (const slot in G.state.equip) {
+      const id = this.equipped(slot);
+      if (!id) continue;
+      const st = this.stats(id);
+      for (const k in st) out[k] = (out[k] || 0) + st[k];
+    }
+    return out;
+  },
+  upgradeCost(id) {
+    const lv = this.level(id), g = G.data.gear[id];
+    if (lv >= GEAR_MAX_LV) return null;
+    return { gold: Math.round(g.price * 0.45 * (lv + 1)), pieces: lv + 1 };
+  },
+  upgrade(id) {
+    const c = this.upgradeCost(id);
+    if (!c || G.state.gold < c.gold || G.inventory.count('pieces') < c.pieces) return false;
+    const before = G.hunter.derived(G.state.hunter);
+    G.state.gold -= c.gold;
+    G.inventory.remove('pieces', c.pieces);
+    G.state.gear[id].lv = this.level(id) + 1;
+    this.after(before);
+    return true;
+  },
 };
 
 // Artefacts de transformation

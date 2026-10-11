@@ -27,6 +27,7 @@
         </div>
         <div class="hud-right">
           <div class="hud-map" id="hud-map"></div>
+          <div class="hud-gold" id="hud-gold"></div>
           <button type="button" id="hud-system" class="sys-btn" hidden>CARNET <kbd>Tab</kbd></button>
         </div>
       </div>
@@ -93,6 +94,24 @@
     </div>
   </div>
 
+  <div id="shop" class="modal" hidden>
+    <div class="syswin shop-box">
+      <div class="shop-head">
+        <div>
+          <div class="sys-title" id="shop-title"></div>
+          <div class="shop-keeper" id="shop-keeper"></div>
+        </div>
+        <div class="shop-money" id="shop-money"></div>
+      </div>
+      <p class="shop-greet" id="shop-greet"></p>
+      <div class="shop-body">
+        <div class="menu" id="shop-menu"></div>
+        <div class="shop-info" id="shop-info"></div>
+      </div>
+      <div class="system-help shop-help">▲ ▼ choisir · Espace acheter / valider · Échap retour</div>
+    </div>
+  </div>
+
   <div id="title" class="modal title-screen" hidden>
     <canvas id="title-bg" aria-hidden="true"></canvas>
     <div class="title-inner">
@@ -132,6 +151,9 @@
   <!-- Données du jeu (c'est ici qu'on ajoute histoire, armes, ennemis, cartes) -->
   <script src="js/data/items.js"></script>
   <script src="js/data/weapons.js"></script>
+  <script src="js/data/gear.js"></script>
+  <script src="js/data/shops.js"></script>
+  <script src="js/data/loot.js"></script>
   <script src="js/data/skills.js"></script>
   <script src="js/data/artifacts.js"></script>
   <script src="js/data/clans.js"></script>
@@ -147,6 +169,7 @@
   <!-- Interface -->
   <script src="js/ui/ui.js"></script>
   <script src="js/ui/system-window.js"></script>
+  <script src="js/ui/shop.js"></script>
   <!-- Scènes -->
   <script src="js/scenes/overworld.js"></script>
   <script src="js/scenes/battle.js"></script>

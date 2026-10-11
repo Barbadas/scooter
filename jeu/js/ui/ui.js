@@ -217,8 +217,8 @@
     const show = !!st && G.scene === G.scenes.overworld && !G.battle.active && fadeState.a < 0.5;
     if (!show) { if (!hud.hidden) { hud.hidden = true; hudSig = ''; } return; }
     const h = st.hunter, d = G.hunter.derived(h);
-    const wid = st.equipped, wtxt = wid && st.weapons[wid] ? `${G.data.weapons[wid].name} · ${G.weapons.ammoText(wid)}` : '';
-    const sig = [h.name, h.level, h.hp, h.mp, d.maxHp, d.maxMp, wtxt, G.scenes.overworld.mapName].join('|');
+    const wid = st.equipped, wtxt = wid && st.weapons[wid] ? `${G.weapons.label(wid)} · ${G.weapons.ammoText(wid)}` : '';
+    const sig = [h.name, h.level, h.hp, h.mp, d.maxHp, d.maxMp, wtxt, G.scenes.overworld.mapName, st.gold].join('|');
     if (sig === hudSig) return;
     hudSig = sig;
     hud.hidden = false;
@@ -230,6 +230,7 @@
     $('hud-mp-txt').textContent = `${h.mp}/${d.maxMp}`;
     $('hud-map').textContent = G.scenes.overworld.mapName || '';
     $('hud-weapon').textContent = wtxt;
+    $('hud-gold').textContent = `${st.gold} ferraille`;
     $('hud-system').hidden = false;
   };
 

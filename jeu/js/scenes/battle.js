@@ -87,7 +87,7 @@
       base: { atk: d.atk, tir: d.tir, def: d.def, spd: d.spd, crit: d.crit, eva: d.eva, acc: d.acc },
       skills: h.skills.filter(id => G.data.skills[id] && !G.data.skills[id].passive && !G.data.skills[id].beast),
       mods: [], dots: [], alive: true, scale: 1.5, alpha: 1, t: 0,
-      weaponShown: G.weapons.shown(), beast: 0, form: null,
+      weaponShown: G.weapons.shown(), beast: G.config.TRIAL && G.artifacts.equipped() ? G.config.TRIAL_BEAST_START : 0, form: null,
     };
   };
 
@@ -261,9 +261,9 @@
     for (;;) {
       const owned = G.weapons.owned();
       const list = owned.map(id => {
-        const w = G.data.weapons[id], can = G.weapons.canFire(id);
+        const w = G.weapons.def(id), can = G.weapons.canFire(id);
         return {
-          label: w.name, sub: G.weapons.ammoText(id), value: 'w:' + id, disabled: !can,
+          label: G.weapons.label(id), sub: G.weapons.ammoText(id), value: 'w:' + id, disabled: !can,
           desc: can ? `+ ${w.pros.join(' · ')}   − ${w.cons.join(' · ')}` : (G.weapons.reserve(id) ? 'Chargeur vide : recharge (1 tour).' : 'Plus aucune munition.'),
         };
       });
@@ -272,11 +272,11 @@
       if (!v) return null;
       if (v === 'reload') {
         const guns = owned.filter(id => G.weapons.needsReload(id));
-        const gid = await G.ui.menu(menu, guns.map(id => ({ label: G.data.weapons[id].name, sub: G.weapons.ammoText(id), value: id, desc: `Chargeur : ${G.weapons.mag(id)}/${G.data.weapons[id].mag} · réserve : ${G.weapons.reserve(id)}` })), { title: 'Recharger', descEl: desc, columns: 2, back: true });
+        const gid = await G.ui.menu(menu, guns.map(id => ({ label: G.weapons.label(id), sub: G.weapons.ammoText(id), value: id, desc: `Chargeur : ${G.weapons.mag(id)}/${G.weapons.def(id).mag} · réserve : ${G.weapons.reserve(id)}` })), { title: 'Recharger', descEl: desc, columns: 2, back: true });
         if (gid) return { type: 'reload', weapon: gid };
         continue;
       }
-      const id = v.slice(2), w = G.data.weapons[id];
+      const id = v.slice(2), w = G.weapons.def(id);
       if (w.spread) return { type: 'weapon', weapon: id, targets: foesOf(u) };
       const t = await this.pickTarget(u, 'enemy');
       if (t) return { type: 'weapon', weapon: id, targets: [t] };
@@ -366,7 +366,7 @@
       return null;
     }
     if (act.type === 'reload') {
-      const n = G.weapons.reload(act.weapon), w = G.data.weapons[act.weapon];
+      const n = G.weapons.reload(act.weapon), w = G.weapons.def(act.weapon);
       u.weaponShown = w.sprite;
       G.state.equipped = act.weapon;
       u.pose = 'attack';
@@ -380,7 +380,7 @@
     if (act.type === 'item') return this.useItem(u, act.item, act.targets);
     if (act.type === 'transform') { await this.transform(u); return null; }
     if (act.type === 'weapon') {
-      const w = act.wdef || G.data.weapons[act.weapon];
+      const w = act.wdef || G.weapons.def(act.weapon);
       await this.attackWeapon(u, w, act.targets, act.weapon);
       return null;
     }
@@ -995,7 +995,7 @@
     const art = G.artifacts.equipped();
     $('party-status').innerHTML = allies().map(u => {
       const wid = G.state.equipped;
-      const wline = u.isPlayer && !u.form && wid && G.state.weapons[wid] ? `${G.data.weapons[wid].name} · ${G.weapons.ammoText(wid)}` : (u.form ? u.form.def.name : '');
+      const wline = u.isPlayer && !u.form && wid && G.state.weapons[wid] ? `${G.weapons.label(wid)} · ${G.weapons.ammoText(wid)}` : (u.form ? u.form.def.name : '');
       return `
       <div class="pm-row ${u === this.turnUnit ? 'active' : ''} ${u.alive ? '' : 'ko'}">
         <div class="pm-name">${esc(u.name)}<small>${u.isPlayer ? `Niv. ${G.state.hunter.level}` : ''}</small></div>

@@ -40,7 +40,9 @@
       hunter: G.hunter.create(name),
       inventory: {}, gold: 0,
       flags: {}, quests: {}, removed: {}, opened: {},
-      weapons: { couteau: { mag: 0 } }, equipped: 'couteau',
+      weapons: { couteau: { mag: 0, lv: 0 } }, equipped: 'couteau',
+      gear: {}, equip: {}, cleared: {}, explored: {},
+      seed: Math.floor(Math.random() * 1e9), nights: 0,
       artifacts: {}, artifactEquipped: null,
       territories: {},
       chapter: 0, pos: null, steps: 0,
@@ -48,7 +50,7 @@
   }
 
   function resetScreens() {
-    ['dialogue', 'battle-ui', 'sysmsg', 'overlay', 'system'].forEach(id => { $(id).hidden = true; });
+    ['dialogue', 'battle-ui', 'sysmsg', 'overlay', 'system', 'shop'].forEach(id => { $(id).hidden = true; });
     G.input.reset();
   }
 
@@ -321,6 +323,9 @@
     go(map, x, y) { G.scenes.overworld.load(map, x, y); },
     weapon(id, ammo = 30) { G.weapons.give(id, ammo); },
     artifact(id = 'loup') { G.artifacts.give(id); },
+    gear(id) { G.gear.give(id); },
+    gold(n = 200) { G.state.gold += n; },
+    shop(id = 'armurerie') { G.events.run([{ shop: id }]); },
   };
 
   // ───────────── Démarrage ─────────────

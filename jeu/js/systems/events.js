@@ -65,6 +65,10 @@
         G.ui.notify(`${t.name} → ${c.name}`, 'quest', 'Territoire');
         return;
       }
+      if (st.shop) return G.shop.open(st.shop);
+      if (st.take) { G.inventory.remove(st.take, st.qty || 1); return; }
+      if (st.rest) { G.scenes.overworld.rest(); return; }
+      if (st.gear) { G.gear.give(st.gear); return U.wait(300); }
       if (st.xp !== undefined) { G.hunter.gainXp(st.xp); return; }
       if (st.stats !== undefined) { h.points += st.stats; G.ui.notify(`+${st.stats} points de statistiques`, 'level'); return; }
       if (st.quest) { G.quests.start(st.quest); return; }

@@ -27,6 +27,7 @@
       // — Personnages —
       heros:           { src: null, size: 1.3 },
       pnj_mira:        { src: null, size: 1.3 },
+      forme_tigre:     { src: null, size: 1.65 },   // transformation (artefact du tigre)
       forme_loup:      { src: null, size: 1.65 },   // transformation (artefact du loup)
       // — Ennemis —
       chien:           { src: null, size: 1.15 },
@@ -34,6 +35,28 @@
       pillard_tireur:  { src: null, size: 1.3 },
       tireur_elite:    { src: null, size: 1.3 },
       kross:           { src: null, size: 1.75 },
+      corbeau:         { src: null, size: 1.1 },
+      // — Village du Corbeau —
+      pnj_chef:        { src: null, size: 1.35 },
+      pnj_hugo:        { src: null, size: 1.3 },
+      pnj_gaspard:     { src: null, size: 1.25 },
+      pnj_lina:        { src: null, size: 1.0 },
+      pnj_bastien:     { src: null, size: 1.3 },
+      pnj_rosa:        { src: null, size: 1.3 },
+      tente_repos:     { src: null, size: 2.3 },
+      tente_armes:     { src: null, size: 2.3 },
+      tente_equip:     { src: null, size: 2.3 },
+      tente_soin:      { src: null, size: 2.3 },
+      tente_cuisine:   { src: null, size: 2.3 },
+      tente_chef:      { src: null, size: 2.9 },
+      tente:           { src: null, size: 2.3 },
+      tente_2:         { src: null, size: 2.3 },
+      tente_3:         { src: null, size: 2.3 },
+      feu_camp:        { src: null, size: 1.1 },
+      torche:          { src: null, size: 1.3 },
+      puits:           { src: null, size: 1.4 },
+      coffre:          { src: null, size: 0.8 },
+      coffre_ouvert:   { src: null, size: 0.8 },
       // — Décor —
       caisse:          { src: null, size: 0.85 },
       caisse_ouverte:  { src: null, size: 0.85 },
@@ -47,6 +70,11 @@
       drapeau:         { src: null, size: 2.0 },
       portail:         { src: null, size: 1.7, flat: true },
       // — Tuiles (48×48 conseillé ; `variants: N` = bande de N tuiles côte à côte) —
+      tuile_herbe:     { src: null, tile: true },   // forêt : herbe
+      tuile_chemin:    { src: null, tile: true },   // chemin de terre
+      tuile_arbre:     { src: null, tile: true },   // arbre (le feuillage peut déborder vers le haut)
+      tuile_eau:       { src: null, tile: true },   // eau
+      tuile_palissade: { src: null, tile: true },   // palissade du village
       tuile_sol:       { src: null, tile: true },   // bitume
       tuile_sol2:      { src: null, tile: true },   // terre, gravats
       tuile_carrelage: { src: null, tile: true },   // sol du métro
@@ -57,6 +85,11 @@
       portrait_mira:   { src: null },
       portrait_chef:   { src: null },
       portrait_kross:  { src: null },
+      portrait_hugo:   { src: null },
+      portrait_gaspard:{ src: null },
+      portrait_lina:   { src: null },
+      portrait_bastien:{ src: null },
+      portrait_rosa:   { src: null },
       // — Fonds —
       fond_titre:      { src: null },
     },

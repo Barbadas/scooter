@@ -5,8 +5,13 @@
   const T = G.config.TILE;
   const DIRV = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
-  const BASE_TILES = { '#': 'mur', '.': 'sol', ',': 'sol2', '~': 'vide', '=': 'carrelage' };
-  const SOLID_TILES = { mur: true, vide: true };
+  const BASE_TILES = {
+    '#': 'mur', '.': 'sol', ',': 'sol2', '~': 'vide', '=': 'carrelage',
+    '"': 'herbe', ':': 'chemin', '^': 'arbre', '%': 'eau', '-': 'palissade',
+  };
+  const SOLID_TILES = { mur: true, vide: true, arbre: true, eau: true, palissade: true };
+  const CH = 16;              // taille d'un bloc de rendu (en tuiles)
+  const ACTIVE_RANGE = 26;    // les ennemis plus loin que ça (en cases) restent immobiles
 
   const OW = {
     map: null, mapId: null, mapName: '', data: null, ents: [], player: null,
@@ -30,6 +35,7 @@
     this.prerender();
     this.updateCamera();
     this.storePos();
+    if (G.state) this.explore();
   };
 
   function parse(data, mapId) {
@@ -52,7 +58,59 @@
       w, h, tiles,
       tileAt(tx, ty) { return tx < 0 || ty < 0 || tx >= w || ty >= h ? 'mur' : tiles[ty][tx]; },
     };
+    if (data.spawns && G.state) spawnRandom(data, mapId, map, ents);
     return { map, ents, start };
+  }
+
+  // ───────────── Placement aléatoire (coffres, bêtes) ─────────────
+  // Graine propre à la partie : la même sauvegarde retrouve les mêmes coffres.
+  function rng(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const SPAWN_GROUND = { herbe: 1, sol2: 0.8, sol: 0.5, chemin: 0.3 };
+  function spawnRandom(data, mapId, map, ents, which) {
+    const sp = data.spawns, st = G.state, [cx, cy] = sp.center, av = sp.avoid;
+    const taken = new Set();
+    const mark = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) taken.add((x + dx) + ',' + (y + dy)); };
+    for (const e of ents) mark(e.x, e.y);
+    // case dégagée : ses 8 voisines sont praticables (jamais un couloir bouché)
+    const open = (x, y) => {
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && SPAWN_GROUND[map.tileAt(x + dx, y + dy)]) n++;
+      return n === 8;
+    };
+    const place = (groups, seed, prefix, kind) => {
+      const R = rng(seed);
+      for (const ch in groups) {
+        const rule = groups[ch], placed = [];
+        for (let i = 0; i < rule.count; i++) {
+          for (let tries = 0; tries < 600; tries++) {
+            const x = 2 + Math.floor(R() * (map.w - 4)), y = 2 + Math.floor(R() * (map.h - 4));
+            const w = SPAWN_GROUND[map.tiles[y][x]];
+            if (!w || R() > w || taken.has(x + ',' + y) || !open(x, y)) continue;
+            if (av && x >= av[0] && x <= av[2] && y >= av[1] && y <= av[3]) continue;
+            const d = Math.hypot(x - cx, y - cy);
+            if (d < (rule.min || 0) || (rule.max && d > rule.max)) continue;
+            if (placed.some(p => Math.abs(p[0] - x) + Math.abs(p[1] - y) < (rule.gap || 4))) continue;
+            placed.push([x, y]);
+            mark(x, y);
+            const e = makeEnt(Object.assign({}, data.legend[ch], { id: `${prefix}_${ch}_${i}` }), ch, x, y, mapId);
+            e.spawned = kind;
+            ents.push(e);
+            break;
+          }
+        }
+      }
+    };
+    if (which !== 'beasts' && sp.chests) place(sp.chests, st.seed, 'coffre', 'chest');
+    if (which !== 'chests' && sp.beasts) place(sp.beasts, st.seed + (st.nights || 0) * 7919 + 101, 'bete', 'beast');
   }
 
   // Sol sous une entité = sol le plus fréquent autour d'elle
@@ -64,7 +122,7 @@
     }
     let best = 'sol', n = 0;
     for (const k in count) if (count[k] > n) { best = k; n = count[k]; }
-    return best === 'sol2' ? 'sol' : best;
+    return best === 'sol2' ? 'sol' : best === 'chemin' && count.herbe ? 'herbe' : best;
   }
 
   function makeEnt(spec, ch, x, y, mapId) {
@@ -85,26 +143,75 @@
     return e;
   }
 
-  // Le décor fixe (tuiles, ombres de contact, gravats, déchets…) est peint une seule fois
+  // Le décor fixe (tuiles, ombres de contact, gravats, déchets…) est peint par blocs de 16×16 cases,
+  // à la demande, puis gardé en cache : une grande carte ne coûte que ce qui est à l'écran.
   OW.prerender = function () {
-    const sc = Math.min(1.5, window.devicePixelRatio || 1);
-    const c = document.createElement('canvas');
-    c.width = Math.ceil(this.map.w * T * sc);
-    c.height = Math.ceil(this.map.h * T * sc);
+    this.tileScale = Math.min(1.5, window.devicePixelRatio || 1);
+    this.chunks = new Map();
+    this.occupied = new Set(this.ents.filter(e => e.kind !== 'trigger').map(e => e.x + ',' + e.y));
+    this.occupied.add(this.player.x + ',' + this.player.y);
+    const P = G.placeholders, map = this.map;
+    this.decorLights = [];
+    this.voidTiles = [];
+    for (let y = 0; y < map.h; y++) {
+      for (let x = 0; x < map.w; x++) {
+        const t = map.tiles[y][x];
+        if (t === 'vide') this.voidTiles.push([x, y]);
+        if (!this.occupied.has(x + ',' + y)) { const l = P.decorTile(null, map, T, x, y); if (l) this.decorLights.push(l); }
+      }
+    }
+    this.parts = [];
+  };
+
+  // Peint les cases [x0,x1[ × [y0,y1[ ligne par ligne : d'abord le sol (et son décor),
+  // puis les éléments hauts (arbres, palissade) qui débordent sur leurs voisins.
+  OW.paintRange = function (ctx, x0, y0, x1, y1) {
+    const map = this.map, P = G.placeholders, A = G.assets;
+    for (let y = Math.max(0, y0); y < Math.min(map.h, y1); y++) {
+      for (let pass = 0; pass < 2; pass++) {
+        for (let x = Math.max(0, x0); x < Math.min(map.w, x1); x++) {
+          const t = map.tiles[y][x], tall = !!P.TALL[t];
+          if (tall !== (pass === 1)) continue;
+          A.drawTile(ctx, t, x * T, y * T, x, y, map);
+          if (!tall) {
+            P.aoTile(ctx, map, T, x, y);
+            if (!this.occupied.has(x + ',' + y)) P.decorTile(ctx, map, T, x, y);
+          }
+        }
+      }
+    }
+  };
+
+  OW.chunk = function (cx, cy) {
+    const key = cx + ',' + cy;
+    let c = this.chunks.get(key);
+    if (c) { this.chunks.delete(key); this.chunks.set(key, c); return c; }
+    const sc = this.tileScale, S = CH * T;
+    c = document.createElement('canvas');
+    c.width = Math.ceil(S * sc);
+    c.height = Math.ceil(S * sc);
     const ctx = c.getContext('2d');
     ctx.scale(sc, sc);
-    for (let y = 0; y < this.map.h; y++) {
-      for (let x = 0; x < this.map.w; x++) G.assets.drawTile(ctx, this.map.tiles[y][x], x * T, y * T, x, y, this.map);
+    ctx.translate(-cx * S, -cy * S);
+    ctx.beginPath(); ctx.rect(cx * S, cy * S, S, S); ctx.clip();
+    // une case de marge : les arbres du bloc voisin débordent sur celui-ci
+    this.paintRange(ctx, cx * CH - 1, cy * CH - 1, (cx + 1) * CH + 1, (cy + 1) * CH + 2);
+    this.chunks.set(key, c);
+    if (this.chunks.size > 36) this.chunks.delete(this.chunks.keys().next().value);
+    return c;
+  };
+
+  // Prépare un bloc proche de l'écran par image, pour éviter les à-coups en marchant
+  OW.warmChunks = function () {
+    const W = G.config.WIDTH, H = G.config.HEIGHT, S = CH * T;
+    const mx = Math.ceil(this.map.w / CH), my = Math.ceil(this.map.h / CH);
+    const ax = Math.floor((this.cam.x - S / 2) / S), bx = Math.floor((this.cam.x + W + S / 2) / S);
+    const ay = Math.floor((this.cam.y - S / 2) / S), by = Math.floor((this.cam.y + H + S / 2) / S);
+    for (let j = Math.max(0, ay); j <= Math.min(my - 1, by); j++) {
+      for (let i = Math.max(0, ax); i <= Math.min(mx - 1, bx); i++) {
+        if (!this.chunks.has(i + ',' + j)) { this.chunk(i, j); return; }
+      }
     }
-    G.placeholders.ambientOcclusion(ctx, this.map, T);
-    const occupied = new Set(this.ents.map(e => e.x + ',' + e.y));
-    occupied.add(this.player.x + ',' + this.player.y);
-    this.decorLights = G.placeholders.decor(ctx, this.map, T, occupied);
-    this.voidTiles = [];
-    for (let y = 0; y < this.map.h; y++) for (let x = 0; x < this.map.w; x++) if (this.map.tiles[y][x] === 'vide') this.voidTiles.push([x, y]);
-    this.tileCanvas = c;
-    this.tileScale = sc;
-    this.parts = [];
   };
 
   // ───────────── Requêtes ─────────────
@@ -114,10 +221,14 @@
     if (e.hiddenIf && f[e.hiddenIf]) return false;
     if (e.showIf && !f[e.showIf]) return false;
     if (G.state.removed[e.key]) return false;
+    if (e.kind === 'enemy' && G.state.cleared && G.state.cleared[e.key]) return false;
     return true;
   };
   OW.findEnt = function (id) { return this.ents.find(e => e.id === id) || null; };
-  OW.occupies = (e, x, y) => (e.x === x && e.y === y) || (e.moving && e.tx === x && e.ty === y);
+  OW.occupies = (e, x, y) => {
+    if (e.wide || e.deep) return Math.abs(x - e.x) <= (e.wide || 0) && y <= e.y && y >= e.y - (e.deep || 0);
+    return (e.x === x && e.y === y) || (e.moving && e.tx === x && e.ty === y);
+  };
   OW.blocked = function (x, y, self) {
     if (SOLID_TILES[this.map.tileAt(x, y)]) return true;
     return this.ents.some(e => e !== self && e.solid && this.visible(e) && this.occupies(e, x, y));
@@ -200,12 +311,45 @@
       this.spawn({ layer: 'world', x: p.px + T / 2 + U.rand(-8, 8), y: p.py + T - 6, vx: U.rand(-14, 14), vy: U.rand(-10, -2), drag: true, life: U.rand(0.35, 0.6), age: 0, r: U.rand(2, 3.5), rgb: '140,125,105' });
     }
     G.state.steps = (G.state.steps || 0) + 1;
+    this.explore();
     G.quests.track('step');
     if (G.state.steps % G.config.REGEN_EVERY_STEPS === 0) G.hunter.heal(1, 1);
     this.storePos();
     const here = this.ents.find(e => e.x === p.x && e.y === p.y && this.visible(e) && (e.kind === 'trigger' || e.kind === 'portal'));
     if (here) { this.activate(here); return; }
     this.checkContact();
+  };
+
+  // Carte du carnet : zones découvertes, par cellules de 4×4 cases
+  OW.explore = function () {
+    if (!G.state.explored) G.state.explored = {};
+    const ex = G.state.explored[this.mapId] || (G.state.explored[this.mapId] = {});
+    const p = this.player, cx = Math.floor(p.x / 4), cy = Math.floor(p.y / 4);
+    for (let j = cy - 2; j <= cy + 2; j++) for (let i = cx - 2; i <= cx + 2; i++) {
+      if (Math.abs(i - cx) + Math.abs(j - cy) <= 3) ex[i + ',' + j] = 1;
+    }
+  };
+
+  // Repos à la tente : soins, sauvegarde, les bêtes reviennent
+  OW.rest = function () {
+    G.state.cleared = {};
+    delete G.state.flags.repas;
+    G.state.nights = (G.state.nights || 0) + 1;
+    // les bêtes de la forêt changent de territoire pendant la nuit
+    if (this.data.spawns) {
+      this.ents = this.ents.filter(e => e.spawned !== 'beast');
+      spawnRandom(this.data, this.mapId, this.map, this.ents, 'beasts');
+    }
+    for (const e of this.ents) {
+      if (e.kind !== 'enemy' || e.unique) continue;
+      e.dead = false; e.moving = false; e.stun = 0; e.chasing = false;
+      e.x = e.tx = e.homeX; e.y = e.ty = e.homeY;
+      e.px = e.x * T; e.py = e.y * T;
+    }
+    const h = G.state.hunter, d = G.hunter.derived(h);
+    h.hp = d.maxHp; h.mp = d.maxMp;
+    G.weapons.reloadAll();
+    G.save.write();
   };
 
   OW.checkContact = function () {
@@ -233,7 +377,7 @@
 
   OW.facing = function () {
     const p = this.player, [dx, dy] = DIRV[p.dir];
-    return this.ents.find(e => e.x === p.x + dx && e.y === p.y + dy && this.visible(e) && e.kind !== 'trigger') || null;
+    return this.ents.find(e => e.kind !== 'trigger' && this.visible(e) && this.occupies(e, p.x + dx, p.y + dy)) || null;
   };
 
   OW.interact = function () {
@@ -248,17 +392,26 @@
   };
 
   OW.openChest = function (e) {
-    if (G.state.opened[e.key]) return G.events.run([{ narrate: 'La caisse est vide.' }]);
+    if (G.state.opened[e.key]) return G.events.run([{ narrate: e.sprite === 'coffre' ? 'Le coffre est vide.' : 'La caisse est vide.' }]);
     G.state.opened[e.key] = true;
+    const got = [];
     if (e.weapon) G.weapons.give(e.weapon, e.ammo || 0);
-    if (e.item) {
-      G.inventory.add(e.item, e.qty || 1);
-      G.ui.notify(`${G.data.items[e.item].name} × ${e.qty || 1}`, 'hint', 'Caisse fouillée');
+    if (e.gear) G.gear.give(e.gear);
+    const add = (id, q) => { if (q > 0) { G.inventory.add(id, q); got.push(`${G.data.items[id].name} × ${q}`); } };
+    if (e.item) add(e.item, e.qty || 1);
+    for (const id in e.extra || {}) add(id, e.extra[id]);
+    if (e.gold) { G.state.gold += e.gold; got.unshift(`${e.gold} ferraille`); }
+    const L = e.loot && G.data.loot[e.loot];
+    if (L) {
+      const n = U.randInt(L.gold[0], L.gold[1]);
+      G.state.gold += n;
+      got.unshift(`${n} ferraille`);
+      for (const [id, chance, qty] of L.rolls) {
+        if (Math.random() < chance) add(id, Array.isArray(qty) ? U.randInt(qty[0], qty[1]) : qty);
+      }
     }
-    for (const id in e.extra || {}) {
-      G.inventory.add(id, e.extra[id]);
-      G.ui.notify(`${G.data.items[id].name} × ${e.extra[id]}`, 'hint', 'Caisse fouillée');
-    }
+    if (got.length) G.events.run([{ system: got.join('\n'), title: e.sprite === 'coffre' ? 'Coffre ouvert' : 'Caisse fouillée' }]);
+    G.save.write();
   };
 
   // Arme dessinée dans la main des ennemis / PNJ sur la carte
@@ -289,6 +442,7 @@
         if (res === 'win') {
           e.dead = true;
           if (e.unique) G.state.removed[e.key] = true;
+          else G.state.cleared[e.key] = true;
           G.save.write();
         } else if (res === 'flee') {
           e.stun = 2.5;
@@ -320,6 +474,7 @@
         continue;
       }
       if (!think || (!e.wander && !e.chase)) continue;
+      if (Math.abs(e.x - p.x) + Math.abs(e.y - p.y) > ACTIVE_RANGE) continue;
       e.cool -= dt;
       if (e.cool > 0) continue;
       const dist = Math.abs(e.x - p.x) + Math.abs(e.y - p.y);
@@ -392,14 +547,18 @@
     ctx.fillRect(0, 0, W, H);
     if (!this.map) return;
     const cx = Math.round(this.cam.x), cy = Math.round(this.cam.y);
-    const sx = Math.max(0, cx), sy = Math.max(0, cy), dx = sx - cx, dy = sy - cy;
-    const sc = this.tileScale || 1, mw = this.map.w * T, mh = this.map.h * T;
-    const sw = Math.min(mw - sx, W - dx), sh = Math.min(mh - sy, H - dy);
-    if (sw > 0 && sh > 0) ctx.drawImage(this.tileCanvas, sx * sc, sy * sc, sw * sc, sh * sc, dx, dy, sw, sh);
+    const S = CH * T, mx = Math.ceil(this.map.w / CH), my = Math.ceil(this.map.h / CH);
+    for (let j = Math.max(0, Math.floor(cy / S)); j <= Math.min(my - 1, Math.floor((cy + H - 1) / S)); j++) {
+      for (let i = Math.max(0, Math.floor(cx / S)); i <= Math.min(mx - 1, Math.floor((cx + W - 1) / S)); i++) {
+        ctx.drawImage(this.chunk(i, j), i * S - cx, j * S - cy, S, S);
+      }
+    }
+    if (!G.battle.active) this.warmChunks();
     this.renderParts(ctx, cx, cy, 'world');
 
     const p = this.player, inBattle = G.battle.active;
-    const list = this.ents.filter(e => e.kind !== 'trigger' && this.visible(e) && !(inBattle && G.battle.hideEnt === e));
+    const near = e => e.px > cx - 200 && e.px < cx + W + 200 && e.py > cy - 120 && e.py < cy + H + 260;
+    const list = this.ents.filter(e => e.kind !== 'trigger' && e.sprite && near(e) && this.visible(e) && !(inBattle && G.battle.hideEnt === e));
     if (!inBattle) list.push(p);
     list.sort((a, b) => (a.py + (a.kind === 'portal' ? -T : 0)) - (b.py + (b.kind === 'portal' ? -T : 0)));
 
@@ -410,7 +569,7 @@
         G.assets.draw(ctx, 'heros', x, y, { dir: p.dir, t: p.anim, moving: p.moving, weapon: G.weapons.shown() });
         continue;
       }
-      const sprite = e.kind === 'chest' && G.state.opened[e.key] ? 'caisse_ouverte' : e.sprite;
+      const sprite = e.kind === 'chest' && G.state.opened[e.key] ? (e.sprite === 'coffre' ? 'coffre_ouvert' : 'caisse_ouverte') : e.sprite;
       const alpha = e.stun > 0 ? 0.5 + 0.3 * Math.sin(e.t * 20) : 1;
       const wpn = e.kind === 'enemy' || e.kind === 'npc' ? enemyWeapon(e) : null;
       G.assets.draw(ctx, sprite, x, e.kind === 'portal' ? y + 2 : y, { dir: e.dir, t: e.t, moving: e.moving, faceX: e.faceX, alpha, weapon: wpn });

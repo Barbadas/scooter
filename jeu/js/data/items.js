@@ -3,7 +3,7 @@
    blast : dégâts d'explosion sur tous les ennemis (combat)
    smoke : fumigène, garantit la fuite (sauf boss)
    ammo  : munitions (1 unité = 1 balle), utilisées en rechargeant
-   key   : objet de quête */
+   key   : objet de quête · material : matériau d'amélioration */
 G.data.items = {
   trousse: { name: 'Trousse de soin', desc: 'Restaure 60 PV.', heal: { hp: 60 } },
   stimulant: { name: 'Stimulant', desc: 'Restaure 30 ÉN.', heal: { mp: 30 } },
@@ -13,5 +13,6 @@ G.data.items = {
   mun_9mm: { name: 'Munitions 9 mm', desc: 'Pour le pistolet.', ammo: true },
   mun_fusil: { name: 'Cartouches 7,62', desc: 'Pour le fusil à lunette. Rares.', ammo: true },
   mun_bande: { name: 'Bande de mitrailleuse', desc: 'Balles pour la mitrailleuse.', ammo: true },
+  pieces: { name: 'Pièces détachées', desc: 'Ressorts, vis, tubes, rivets… Servent à améliorer armes et équipement.', material: true },
   medicaments: { name: 'Caisse de médicaments', desc: 'Antibiotiques, morphine, pansements. Le camp en a désespérément besoin.', key: true },
 };

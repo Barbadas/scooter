@@ -69,11 +69,42 @@ G.data.skills = {
     ],
   },
 
+  laceration: {
+    name: 'Lacération', beast: true,
+    desc: 'Trois coups de griffes en rafale (3 × 70 %), 40 % de saignement chacun.',
+    target: 'enemy', anim: 'melee', color: '#ff9a3c', vfx: 'claw',
+    effects: [{ type: 'damage', power: 0.7, hits: 3, stat: 'atk', acc: 0.97, bleed: { chance: 0.4, dmg: 5, turns: 3 } }],
+  },
+  bond: {
+    name: 'Bond du tigre', beast: true,
+    desc: 'Saut à la gorge : 200 % de dégâts, critique +30 %.',
+    target: 'enemy', anim: 'melee', color: '#ffd166', vfx: 'smash',
+    effects: [{ type: 'damage', power: 2.0, critBonus: 0.3, stat: 'atk', acc: 0.92 }],
+  },
+  rugissement: {
+    name: 'Rugissement', beast: true,
+    desc: 'Le sol tremble : ATQ et TIR ennemis −30 %, DÉF ennemie −20 % pendant 2 tours.',
+    target: 'enemies', anim: 'cast', color: '#ff9a3c', vfx: 'dread',
+    effects: [
+      { type: 'mod', stat: 'atk', mult: 0.7, turns: 2 },
+      { type: 'mod', stat: 'tir', mult: 0.7, turns: 2 },
+      { type: 'mod', stat: 'def', mult: 0.8, turns: 2 },
+    ],
+  },
+
   // ───────────── Ennemis ─────────────
   arme: { name: 'Attaque', target: 'enemy', useWeapon: 'own' },
   morsure: {
     name: 'Morsure', target: 'enemy', anim: 'melee', color: '#e0412b', vfx: 'claw',
     effects: [{ type: 'damage', power: 1, stat: 'atk', acc: 0.95, bleed: { chance: 0.25, dmg: 3, turns: 3 } }],
+  },
+  coup_bec: {
+    name: 'Coup de bec', target: 'enemy', anim: 'melee', color: '#c9c2b8', vfx: 'claw',
+    effects: [{ type: 'damage', power: 0.9, stat: 'atk', acc: 0.95, bleed: { chance: 0.2, dmg: 2, turns: 2 } }],
+  },
+  pique: {
+    name: 'Piqué', target: 'enemy', anim: 'melee', color: '#e0412b', vfx: 'smash',
+    effects: [{ type: 'damage', power: 1.4, stat: 'atk', acc: 0.85 }],
   },
   charge: {
     name: 'Charge', target: 'enemy', anim: 'melee', color: '#c9b08a', vfx: 'smash',

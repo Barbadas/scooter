@@ -17,6 +17,11 @@ G.config = {
   REGEN_EVERY_STEPS: 4,  // +1 PV et +1 ÉN tous les N pas (hors combat)
   PLAYER_LIGHT: 4.6,     // rayon de lumière autour du joueur (en tuiles)
   BEAST_MAX: 100,        // jauge de bête (transformation par artefact)
+  // Version d'essai : l'Artefact du Tigre est donné dès le début et la jauge de bête
+  // démarre à moitié pleine à chaque combat. Mettre TRIAL à false pour l'histoire normale.
+  TRIAL: true,
+  TRIAL_ARTIFACT: 'tigre',
+  TRIAL_BEAST_START: 50,
 };
 
 // Statistiques du survivant

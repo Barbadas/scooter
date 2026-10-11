@@ -1,5 +1,5 @@
-/* Le carnet du survivant : statut et répartition des points, armes, techniques,
-   sac, missions, territoires des clans, artefacts. */
+/* Le carnet du survivant : statut et répartition des points, armes, équipement, techniques,
+   sac, missions, carte du monde, territoires des clans, artefacts. */
 (function () {
   const $ = id => document.getElementById(id);
   const esc = G.U.esc;
@@ -7,9 +7,11 @@
   const TABS = [
     { id: 'statut', label: 'Statut' },
     { id: 'armes', label: 'Armes' },
+    { id: 'equipement', label: 'Équipement' },
     { id: 'techniques', label: 'Techniques' },
     { id: 'sac', label: 'Sac' },
     { id: 'missions', label: 'Missions' },
+    { id: 'carte', label: 'Carte' },
     { id: 'territoires', label: 'Territoires' },
     { id: 'artefacts', label: 'Artefacts', show: () => G.artifacts.owned().length > 0 },
   ];
@@ -44,6 +46,7 @@
     if (id === 'statut') return STAT_KEYS.length;
     if (id === 'sac') return G.inventory.list().length;
     if (id === 'armes') return G.weapons.owned().length;
+    if (id === 'equipement') return G.gear.owned().length;
     if (id === 'artefacts') return G.artifacts.owned().length;
     return 0;
   }
@@ -71,6 +74,10 @@
     if (id === 'armes') {
       const w = G.weapons.owned()[i];
       if (w && G.data.weapons[w].kind === 'gun') { G.state.equipped = w; G.ui.notify(`${G.data.weapons[w].name} en main.`, 'hint'); }
+    }
+    if (id === 'equipement') {
+      const g = G.gear.owned()[i];
+      if (g) { const slot = G.data.gear[g].slot; if (G.gear.equipped(slot) === g) G.gear.unequip(slot); else G.gear.equip(g); }
     }
     if (id === 'artefacts') {
       const a = G.artifacts.owned()[i];
@@ -113,9 +120,9 @@
     const owned = G.weapons.owned();
     if (!owned.length) return '<p class="empty-note">Aucune arme.</p>';
     return `<div class="wp-list">${owned.map((id, i) => {
-      const w = G.data.weapons[id], eq = G.state.equipped === id;
+      const w = G.weapons.def(id), eq = G.state.equipped === id;
       return `<div class="wp-item ${i === SW.sel ? 'active' : ''}" data-i="${i}">
-        <div class="wp-head"><b>${esc(w.name)}</b><small>${w.kind === 'melee' ? 'Corps à corps' : `Munitions ${esc(G.weapons.ammoText(id))}`}${eq ? ' · en main' : ''}</small></div>
+        <div class="wp-head"><b>${esc(G.weapons.label(id))}</b><small>${w.kind === 'melee' ? 'Corps à corps' : `Munitions ${esc(G.weapons.ammoText(id))}`}${eq ? ' · en main' : ''}</small></div>
         <div class="wp-cols">
           <ul class="wp-pros">${w.pros.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
           <ul class="wp-cons">${w.cons.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
@@ -123,6 +130,60 @@
         <div class="wp-stats">Dégâts ×${w.power}${w.hits ? ` × ${w.hits} balles` : ''} · Précision ${Math.round(w.acc * 100)} %${w.mag ? ` · Chargeur ${w.mag}` : ''}</div>
       </div>`;
     }).join('')}</div>`;
+  }
+
+  function renderGear() {
+    const owned = G.gear.owned(), b = G.gear.bonus();
+    const slots = Object.entries(G.GEAR_SLOTS).map(([slot, name]) => {
+      const id = G.gear.equipped(slot);
+      return `<div class="st-line"><span>${esc(name)}</span><b>${id ? `${esc(G.data.gear[id].name)}${G.gear.level(id) ? ` +${G.gear.level(id)}` : ''}` : '—'}</b></div>`;
+    }).join('');
+    const N = { hp: 'PV', mp: 'ÉN', def: 'DÉF', spd: 'VIT', eva: 'ESQ', crit: 'CRIT' };
+    const tot = Object.entries(b).filter(([, v]) => v).map(([k, v]) => `<span>${N[k] || k} <b>${v > 0 ? '+' : ''}${k === 'eva' || k === 'crit' ? Math.round(v * 100) + ' %' : v}</b></span>`).join('');
+    const list = owned.map((id, i) => {
+      const g = G.data.gear[id], on = G.gear.equipped(g.slot) === id, lv = G.gear.level(id);
+      return `<div class="inv-item ${i === SW.sel ? 'active' : ''}" data-i="${i}">
+        <div class="inv-head"><b>${esc(g.name)}${lv ? ` +${lv}` : ''}</b><small>${esc(G.GEAR_SLOTS[g.slot])}${on ? ' · porté' : ''}</small></div>
+        <p>${esc(G.gear.statText(id))} — ${esc(g.desc)}</p>
+      </div>`;
+    }).join('');
+    return `<div class="st-grid">${slots}</div>
+      ${tot ? `<div class="st-derived" style="margin-top:10px">${tot}</div>` : ''}
+      ${owned.length ? `<div class="inv-list" style="margin-top:12px">${list}</div><p class="menu-desc">Espace : porter / retirer. Rosa (tente au casque) vend et améliore l’équipement.</p>`
+        : '<p class="empty-note">Aucun équipement. Rosa en vend au village (tente au casque), et certains coffres en cachent.</p>'}`;
+  }
+
+  // Carte du monde : zones découvertes, village, sorties, position du joueur
+  const MAP_COL = { herbe: '#4a5a32', chemin: '#8a6e48', arbre: '#1f2e1a', eau: '#2c5a66', palissade: '#9a7a50', mur: '#5a4a40', sol: '#3e3a36', sol2: '#5a4c3a', carrelage: '#7a756a', vide: '#0a0806' };
+  function renderMap() {
+    const ow = G.scenes.overworld, map = ow.map;
+    if (!map) return '';
+    const ex = (G.state.explored || {})[ow.mapId] || {};
+    const k = Math.max(2, Math.min(7, Math.floor(700 / map.w)));
+    setTimeout(() => {
+      const c = document.getElementById('worldmap');
+      if (!c) return;
+      const x = c.getContext('2d');
+      x.fillStyle = '#0b0907'; x.fillRect(0, 0, c.width, c.height);
+      for (let ty = 0; ty < map.h; ty++) for (let tx = 0; tx < map.w; tx++) {
+        if (!ex[(tx >> 2) + ',' + (ty >> 2)]) continue;
+        x.fillStyle = MAP_COL[map.tiles[ty][tx]] || '#333';
+        x.fillRect(tx * k, ty * k, k, k);
+      }
+      const mark = (e, color, r) => { x.fillStyle = color; x.beginPath(); x.arc(e.x * k + k / 2, e.y * k + k / 2, r, 0, Math.PI * 2); x.fill(); };
+      for (const e of ow.ents) {
+        if (!ex[(e.x >> 2) + ',' + (e.y >> 2)] || !ow.visible(e)) continue;
+        if (e.kind === 'portal') mark(e, '#8fd0ff', k * 0.9);
+        else if (e.kind === 'chest' && !G.state.opened[e.key]) mark(e, '#e8c547', k * 0.6);
+        else if (e.wide) mark(e, '#d9a441', k * 0.9);
+        else if (e.kind === 'object' && e.light && e.light.flicker && e.sprite === 'feu_camp') mark(e, '#ff8a3a', k);
+      }
+      const p = ow.player;
+      x.strokeStyle = '#fff'; x.lineWidth = 2; mark(p, '#e0412b', k * 1.1); x.beginPath(); x.arc(p.x * k + k / 2, p.y * k + k / 2, k * 1.1, 0, Math.PI * 2); x.stroke();
+    }, 0);
+    return `<div class="map-name">${esc(ow.mapName)}</div>
+      <div class="map-wrap"><canvas id="worldmap" width="${map.w * k}" height="${map.h * k}"></canvas></div>
+      <div class="map-legend"><span><i style="background:#e0412b"></i>Toi</span><span><i style="background:#d9a441"></i>Tente</span><span><i style="background:#e8c547"></i>Coffre</span><span><i style="background:#8fd0ff"></i>Sortie</span></div>`;
   }
 
   function renderSkills() {
@@ -190,7 +251,7 @@
   function render() {
     const ts = tabs(), id = current();
     $('system-tabs').innerHTML = ts.map((t, i) => `<button type="button" data-tab="${i}" class="${i === SW.tab ? 'active' : ''}">${t.label}</button>`).join('');
-    const html = { statut: renderStatus, armes: renderWeapons, techniques: renderSkills, sac: renderBag, missions: renderQuests, territoires: renderTerritories, artefacts: renderArtifacts }[id]();
+    const html = { statut: renderStatus, armes: renderWeapons, equipement: renderGear, techniques: renderSkills, sac: renderBag, missions: renderQuests, carte: renderMap, territoires: renderTerritories, artefacts: renderArtifacts }[id]();
     $('system-content').innerHTML = `<div class="sys-title" style="margin-bottom:12px">${esc(ts[SW.tab].label)}</div>${html}`;
   }
 
@@ -208,7 +269,7 @@
       const row = e.target.closest('[data-i]');
       if (row) {
         const i = +row.dataset.i;
-        if (SW.sel === i && (current() === 'armes' || current() === 'artefacts')) activate(i);
+        if (SW.sel === i && (current() === 'armes' || current() === 'artefacts' || current() === 'equipement')) activate(i);
         else { SW.sel = i; render(); }
       }
     });

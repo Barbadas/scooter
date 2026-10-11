@@ -13,6 +13,7 @@
   const DIRS = ['up', 'down', 'left', 'right'];
   const held = new Set();
   let order = [];
+  let tap = null;   // appui bref (relâché avant la prochaine image) : mémorisé pour un pas
   const stack = [];
   let base = null;
 
@@ -30,6 +31,7 @@
     if (!DIRS.includes(a)) return;
     if (!held.has(a)) order.push(a);
     held.add(a);
+    if (!stack.length) tap = a;
   }
   function release(a) {
     held.delete(a);
@@ -50,15 +52,18 @@
     const a = actionFrom(e);
     if (a) release(a);
   });
-  window.addEventListener('blur', () => { held.clear(); order = []; });
+  window.addEventListener('blur', () => { held.clear(); order = []; tap = null; });
 
   G.input = {
     // Direction maintenue (la dernière pressée gagne)
     dir() {
-      for (let i = order.length - 1; i >= 0; i--) if (held.has(order[i])) return order[i];
-      return null;
+      for (let i = order.length - 1; i >= 0; i--) if (held.has(order[i])) { tap = null; return order[i]; }
+      const t = tap;
+      tap = null;
+      return t;
     },
     push(fn) {
+      tap = null;
       stack.push(fn);
       return () => { const i = stack.lastIndexOf(fn); if (i >= 0) stack.splice(i, 1); };
     },
@@ -66,7 +71,7 @@
     free() { return stack.length === 0; },
     press(a) { hold(a); dispatch(a); },
     release,
-    reset() { held.clear(); order = []; },
+    reset() { held.clear(); order = []; tap = null; },
   };
 
   // Manette tactile
