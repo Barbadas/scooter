@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Monarque des Ombres</title>
+  <title>Terres de Cendre</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow+Semi+Condensed:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Barlow+Semi+Condensed:ital,wght@0,400;0,500;0,600;1,400&display=swap">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -22,18 +22,19 @@
         <div class="hud-left">
           <div class="hud-name"><span id="hud-name">—</span> <span class="hud-lvl" id="hud-lvl"></span></div>
           <div class="hud-bar"><span>PV</span><div class="bar hp"><i id="hud-hp"></i></div><b id="hud-hp-txt"></b></div>
-          <div class="hud-bar"><span>PM</span><div class="bar mp"><i id="hud-mp"></i></div><b id="hud-mp-txt"></b></div>
+          <div class="hud-bar"><span>ÉN</span><div class="bar mp"><i id="hud-mp"></i></div><b id="hud-mp-txt"></b></div>
+          <div class="hud-weapon" id="hud-weapon"></div>
         </div>
         <div class="hud-right">
           <div class="hud-map" id="hud-map"></div>
-          <button type="button" id="hud-system" class="sys-btn" hidden>SYSTÈME <kbd>Tab</kbd></button>
+          <button type="button" id="hud-system" class="sys-btn" hidden>CARNET <kbd>Tab</kbd></button>
         </div>
       </div>
 
       <div id="dock">
         <div id="dock-idle" hidden>
           <span id="dock-idle-map"></span>
-          <span>A : interagir · B : retour · SYS : Système</span>
+          <span>A : interagir · B : retour · CARNET : sac et statut</span>
         </div>
         <div id="dialogue" class="syswin" hidden>
           <div class="dlg-portrait" id="dlg-portrait" hidden></div>
@@ -61,7 +62,7 @@
           <button type="button" data-key="down" class="down">▼</button>
         </div>
         <div class="tbtns">
-          <button type="button" data-key="menu" class="t-menu">SYS</button>
+          <button type="button" data-key="menu" class="t-menu">CARNET</button>
           <button type="button" data-key="cancel" class="t-b">B</button>
           <button type="button" data-key="ok" class="t-a">A</button>
         </div>
@@ -73,10 +74,10 @@
 
   <div id="sysmsg" class="modal" hidden>
     <div class="syswin sysmsg-box">
-      <div class="sys-title" id="sysmsg-title">NOTIFICATION</div>
+      <div class="sys-title" id="sysmsg-title">Radio</div>
       <div class="sysmsg-text" id="sysmsg-text"></div>
       <div class="menu" id="sysmsg-menu"></div>
-      <div class="sysmsg-ok" id="sysmsg-ok">[ OK ]</div>
+      <div class="sysmsg-ok" id="sysmsg-ok">OK ▸</div>
     </div>
   </div>
 
@@ -95,12 +96,12 @@
   <div id="title" class="modal title-screen" hidden>
     <canvas id="title-bg" aria-hidden="true"></canvas>
     <div class="title-inner">
-      <div class="title-eyebrow">[ Le Système vous a choisi ]</div>
-      <h1 class="title-name">Monarque<br>des Ombres</h1>
+      <div class="title-eyebrow">Lyon, 2061 — douze ans après la Chute</div>
+      <h1 class="title-name">Terres<br>de Cendre</h1>
       <div class="syswin title-menu">
         <div id="title-main" class="menu"></div>
         <form id="title-nameform" hidden>
-          <label for="title-nameinput" class="sys-title">Entrez votre nom</label>
+          <label for="title-nameinput" class="sys-title">Ton nom de survivant</label>
           <input id="title-nameinput" maxlength="14" autocomplete="off" spellcheck="false">
           <div class="title-form-btns">
             <button type="button" class="sys-btn" id="title-back">Retour</button>
@@ -108,7 +109,7 @@
           </div>
         </form>
       </div>
-      <div class="title-foot">Flèches / ZQSD · Espace · Tab — RPG au tour par tour, inspiré de Solo Leveling</div>
+      <div class="title-foot">Flèches / ZQSD · Espace · Tab — RPG de survie au tour par tour</div>
     </div>
   </div>
 
@@ -128,9 +129,12 @@
   <script src="js/core/assets.js"></script>
   <script src="js/core/placeholders.js"></script>
   <script src="js/core/save.js"></script>
-  <!-- Données du jeu (c'est ici qu'on ajoute histoire, pouvoirs, monstres, cartes) -->
+  <!-- Données du jeu (c'est ici qu'on ajoute histoire, armes, ennemis, cartes) -->
   <script src="js/data/items.js"></script>
+  <script src="js/data/weapons.js"></script>
   <script src="js/data/skills.js"></script>
+  <script src="js/data/artifacts.js"></script>
+  <script src="js/data/clans.js"></script>
   <script src="js/data/enemies.js"></script>
   <script src="js/data/quests.js"></script>
   <script src="js/data/maps.js"></script>

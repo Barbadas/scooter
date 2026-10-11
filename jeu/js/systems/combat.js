@@ -1,26 +1,26 @@
 /* Règles de combat (calculs purs, sans affichage). */
 G.combat = {
   stat(u, k) {
-    let v = u.base[k];
+    let v = u.base[k] != null ? u.base[k] : 0;
     for (const m of u.mods) if (m.stat === k) v *= m.mult;
     return v;
   },
 
-  // Résultat d'un coup : { dmg, crit, miss }
+  /* Résultat d'un coup : { dmg, crit, miss }
+     eff = { power, stat: 'atk'|'tir', acc, critBonus, armor, pierce, sure } */
   hit(att, def, eff) {
     const power = eff.power || 1;
-    if (Math.random() < this.stat(def, 'eva')) return { dmg: 0, miss: true };
+    const acc = (eff.acc != null ? eff.acc : 0.95) * (att.base.acc || 1);
+    const chance = G.U.clamp(acc - this.stat(def, 'eva'), 0.05, 0.99);
+    if (!eff.sure && Math.random() > chance) return { dmg: 0, miss: true };
     const crit = Math.random() < this.stat(att, 'crit') + (eff.critBonus || 0);
-    const a = eff.magic ? this.stat(att, 'mag') : this.stat(att, 'atk');
-    let d = a * power * 60 / (60 + Math.max(0, this.stat(def, 'def')));
+    const a = eff.stat === 'tir' ? this.stat(att, 'tir') : this.stat(att, 'atk');
+    const armor = Math.max(0, this.stat(def, 'def')) * (eff.armor || 1) * (1 - (eff.pierce || 0));
+    let d = a * power * 60 / (60 + armor);
     d *= G.U.rand(0.9, 1.1);
     if (crit) d *= 1.75;
     if (def.defending) d *= 0.5;
     return { dmg: Math.max(1, Math.round(d)), crit };
-  },
-
-  healAmount(user, eff) {
-    return Math.round(this.stat(user, 'mag') * (eff.power || 1) * G.U.rand(0.95, 1.05));
   },
 
   fleeChance(allies, enemies) {

@@ -56,7 +56,15 @@
         G.ui.notify(`${G.data.items[st.give].name} × ${st.qty || 1}`, 'hint', 'Objet obtenu');
         return;
       }
-      if (st.gold !== undefined) { G.state.gold += st.gold; G.ui.notify(`+${st.gold} or`, 'hint'); return; }
+      if (st.gold !== undefined) { G.state.gold += st.gold; G.ui.notify(`+${st.gold} ferraille`, 'hint'); return; }
+      if (st.weapon) { G.weapons.give(st.weapon, st.ammo || 0); return U.wait(300); }
+      if (st.artifact) { G.artifacts.give(st.artifact); return U.wait(300); }
+      if (st.territory) {
+        G.state.territories[st.territory.id] = st.territory.owner;
+        const t = G.data.territories[st.territory.id], c = G.data.clans[st.territory.owner];
+        G.ui.notify(`${t.name} → ${c.name}`, 'quest', 'Territoire');
+        return;
+      }
       if (st.xp !== undefined) { G.hunter.gainXp(st.xp); return; }
       if (st.stats !== undefined) { h.points += st.stats; G.ui.notify(`+${st.stats} points de statistiques`, 'level'); return; }
       if (st.quest) { G.quests.start(st.quest); return; }

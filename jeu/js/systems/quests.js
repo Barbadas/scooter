@@ -1,4 +1,4 @@
-/* Suivi des quêtes du Système. Les récompenses sont distribuées
+/* Suivi des missions. Les récompenses sont distribuées
    dès que le joueur est libre (pas pendant un combat ou un dialogue). */
 G.quests = {
   pending: [],
@@ -7,18 +7,19 @@ G.quests = {
     const q = G.data.quests[id];
     if (!q || G.state.quests[id]) return;
     G.state.quests[id] = { progress: q.objectives.map(() => 0), done: false };
-    G.ui.notify(q.title, 'quest', 'Nouvelle quête');
+    G.ui.notify(q.title, 'quest', 'Nouvelle mission');
     this.checkFlags();
   },
 
-  track(type, n = 1) {
+  // track('kill', 1, 'chien') : l'objectif peut cibler un ennemi précis (o.enemy)
+  track(type, n = 1, what = null) {
     if (!G.state) return;
     for (const id in G.state.quests) {
       const st = G.state.quests[id];
       if (st.done) continue;
       const q = G.data.quests[id];
       q.objectives.forEach((o, i) => {
-        if (o.type === type) st.progress[i] = Math.min(o.target, st.progress[i] + n);
+        if (o.type === type && (!o.enemy || o.enemy === what)) st.progress[i] = Math.min(o.target, st.progress[i] + n);
       });
       this.check(id);
     }
@@ -49,12 +50,12 @@ G.quests = {
     const q = G.data.quests[id], r = q.rewards || {};
     const lines = [];
     if (r.xp) lines.push(`+${r.xp} EXP`);
-    if (r.gold) lines.push(`+${r.gold} or`);
+    if (r.gold) lines.push(`+${r.gold} ferraille`);
     if (r.stats) lines.push(`+${r.stats} points de statistiques`);
     if (r.items) for (const it in r.items) lines.push(`${G.data.items[it].name} × ${r.items[it]}`);
     if (r.heal) lines.push('Récupération complète');
     return [
-      { system: `${q.title}\n\nQuête terminée !\n${lines.join(' · ')}`, title: 'Quête terminée' },
+      { system: `${q.title}\n\nMission accomplie !\n${lines.join(' · ')}`, title: 'Mission accomplie' },
       { fn: () => {
         if (r.heal) { const d = G.hunter.derived(G.state.hunter); G.state.hunter.hp = d.maxHp; G.state.hunter.mp = d.maxMp; }
         if (r.stats) G.state.hunter.points += r.stats;

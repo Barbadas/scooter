@@ -1,11 +1,11 @@
-/* Exploration vue de dessus : déplacement case par case, monstres visibles,
-   interactions, portails, éclairage du donjon. */
+/* Exploration vue de dessus : déplacement case par case, ennemis visibles,
+   interactions, portails, éclairage nocturne. */
 (function () {
   const U = G.U;
   const T = G.config.TILE;
   const DIRV = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
-  const BASE_TILES = { '#': 'mur', '.': 'sol', ',': 'sol2', '~': 'vide', '=': 'temple' };
+  const BASE_TILES = { '#': 'mur', '.': 'sol', ',': 'sol2', '~': 'vide', '=': 'carrelage' };
   const SOLID_TILES = { mur: true, vide: true };
 
   const OW = {
@@ -85,7 +85,7 @@
     return e;
   }
 
-  // Le décor fixe (tuiles, ombres de contact, cailloux, cristaux…) est peint une seule fois
+  // Le décor fixe (tuiles, ombres de contact, gravats, déchets…) est peint une seule fois
   OW.prerender = function () {
     const sc = Math.min(1.5, window.devicePixelRatio || 1);
     const c = document.createElement('canvas');
@@ -197,10 +197,10 @@
   OW.onStep = function () {
     const p = this.player;
     for (let i = 0; i < 3; i++) {
-      this.spawn({ layer: 'world', x: p.px + T / 2 + U.rand(-8, 8), y: p.py + T - 6, vx: U.rand(-14, 14), vy: U.rand(-10, -2), drag: true, life: U.rand(0.35, 0.6), age: 0, r: U.rand(2, 3.5), rgb: '120,130,150' });
+      this.spawn({ layer: 'world', x: p.px + T / 2 + U.rand(-8, 8), y: p.py + T - 6, vx: U.rand(-14, 14), vy: U.rand(-10, -2), drag: true, life: U.rand(0.35, 0.6), age: 0, r: U.rand(2, 3.5), rgb: '140,125,105' });
     }
     G.state.steps = (G.state.steps || 0) + 1;
-    if (G.state.flags.eveil) G.quests.track('step');
+    G.quests.track('step');
     if (G.state.steps % G.config.REGEN_EVERY_STEPS === 0) G.hunter.heal(1, 1);
     this.storePos();
     const here = this.ents.find(e => e.x === p.x && e.y === p.y && this.visible(e) && (e.kind === 'trigger' || e.kind === 'portal'));
@@ -248,11 +248,26 @@
   };
 
   OW.openChest = function (e) {
-    if (G.state.opened[e.key]) return G.events.run([{ narrate: 'Le coffre est vide.' }]);
+    if (G.state.opened[e.key]) return G.events.run([{ narrate: 'La caisse est vide.' }]);
     G.state.opened[e.key] = true;
-    G.inventory.add(e.item, e.qty || 1);
-    G.ui.notify(`${G.data.items[e.item].name} × ${e.qty || 1}`, 'hint', 'Coffre ouvert');
+    if (e.weapon) G.weapons.give(e.weapon, e.ammo || 0);
+    if (e.item) {
+      G.inventory.add(e.item, e.qty || 1);
+      G.ui.notify(`${G.data.items[e.item].name} × ${e.qty || 1}`, 'hint', 'Caisse fouillée');
+    }
+    for (const id in e.extra || {}) {
+      G.inventory.add(id, e.extra[id]);
+      G.ui.notify(`${G.data.items[id].name} × ${e.extra[id]}`, 'hint', 'Caisse fouillée');
+    }
   };
+
+  // Arme dessinée dans la main des ennemis / PNJ sur la carte
+  function enemyWeapon(e) {
+    const id = e.kind === 'enemy' ? e.group[0] : null;
+    const data = id && G.data.enemies[id];
+    if (data && data.weapon) return G.data.weapons[data.weapon].sprite;
+    return e.weapon || null;
+  }
 
   // Contact avec un monstre → combat (ou événement de boss)
   OW.encounter = async function (e) {
@@ -392,19 +407,13 @@
       const x = e.px + T / 2 - cx, y = e.py + T - 4 - cy;
       if (x < -150 || x > W + 150 || y < -60 || y > H + 200) continue;
       if (e === p) {
-        if (G.state.flags.eveil) {
-          const a = 0.22 + 0.08 * Math.sin(G.time * 3);
-          const g = ctx.createRadialGradient(x, y - 2, 0, x, y - 2, T * 0.7);
-          g.addColorStop(0, `rgba(63,160,255,${a})`); g.addColorStop(1, 'rgba(63,160,255,0)');
-          ctx.fillStyle = g;
-          ctx.fillRect(x - T, y - T * 0.6, T * 2, T * 1.1);
-        }
-        G.assets.draw(ctx, 'heros', x, y, { dir: p.dir, t: p.anim, moving: p.moving, glow: !!G.state.flags.eveil });
+        G.assets.draw(ctx, 'heros', x, y, { dir: p.dir, t: p.anim, moving: p.moving, weapon: G.weapons.shown() });
         continue;
       }
-      const sprite = e.kind === 'chest' && G.state.opened[e.key] ? 'coffre_ouvert' : e.sprite;
+      const sprite = e.kind === 'chest' && G.state.opened[e.key] ? 'caisse_ouverte' : e.sprite;
       const alpha = e.stun > 0 ? 0.5 + 0.3 * Math.sin(e.t * 20) : 1;
-      G.assets.draw(ctx, sprite, x, e.kind === 'portal' ? y + 2 : y, { dir: e.dir, t: e.t, moving: e.moving, faceX: e.faceX, alpha });
+      const wpn = e.kind === 'enemy' || e.kind === 'npc' ? enemyWeapon(e) : null;
+      G.assets.draw(ctx, sprite, x, e.kind === 'portal' ? y + 2 : y, { dir: e.dir, t: e.t, moving: e.moving, faceX: e.faceX, alpha, weapon: wpn });
       if (e.kind === 'enemy' && e.chasing && e.stun <= 0) this.drawMark(ctx, x, y - (G.assets.manifest[sprite]?.size || 1) * T - 6, '!', '#ff4d5e');
     }
 
@@ -461,7 +470,7 @@
     lc.globalAlpha = 1;
     lc.globalCompositeOperation = 'source-over';
     lc.clearRect(0, 0, W, H);
-    lc.fillStyle = `rgba(2,4,14,${dark})`;
+    lc.fillStyle = `rgba(8,7,6,${dark})`;
     lc.fillRect(0, 0, W, H);
     // brume : éclaircit l'obscurité par endroits
     if (!fogTex) fogTex = makeFog();
@@ -475,15 +484,15 @@
     lc.globalAlpha = 1;
 
     const p = this.player;
-    const lights = [{ x: p.px + T / 2 - cx, y: p.py + T / 2 - cy, r: G.config.PLAYER_LIGHT * T, color: G.state.flags.eveil ? '90,150,255' : null }];
+    const lights = [{ x: p.px + T / 2 - cx, y: p.py + T / 2 - cy, r: G.config.PLAYER_LIGHT * T, color: '255,220,170' }];
     for (const e of this.ents) {
       if (!e.light || !this.visible(e)) continue;
       const fl = e.light.flicker ? 1 + Math.sin(G.time * 9 + e.x) * 0.04 + Math.sin(G.time * 23 + e.y) * 0.03 : 1;
       lights.push({ x: e.px + T / 2 - cx, y: e.py + T / 2 - cy, r: e.light.r * T * fl, color: e.light.color, hot: e.light.flicker });
     }
     for (const l of this.decorLights || []) {
-      const k = 1 + Math.sin(G.time * 2 + l.x * 1.7) * 0.08;
-      lights.push({ x: l.x * T + T / 2 - cx, y: l.y * T + T * 0.4 - cy, r: l.r * T * k, color: l.color });
+      const k = l.flicker ? 1 + Math.sin(G.time * 11 + l.x) * 0.05 + Math.sin(G.time * 27 + l.y) * 0.04 : 1 + Math.sin(G.time * 2 + l.x * 1.7) * 0.08;
+      lights.push({ x: l.x * T + T / 2 - cx, y: l.y * T + T * 0.4 - cy, r: l.r * T * k, color: l.color, hot: l.flicker });
     }
     const vis = lights.filter(l => l.x > -l.r && l.x < W + l.r && l.y > -l.r && l.y < H + l.r);
     lc.globalCompositeOperation = 'destination-out';
@@ -531,24 +540,23 @@
       if (e.light && e.light.flicker && R(9)) {
         this.spawn({ layer: 'glow', x: ex + U.rand(-8, 8), y: e.py + T * 0.1, vx: U.rand(-10, 10), vy: U.rand(-55, -30), life: U.rand(0.7, 1.4), age: 0, r: U.rand(1, 2.2), rgb: Math.random() < 0.5 ? '255,170,70' : '255,220,140', wob: Math.random() * 6 });
       }
-      if (e.kind === 'portal' && R(10)) {
+      if (e.kind === 'portal' && e.sprite === 'portail' && R(10)) {
         const a = Math.random() * Math.PI * 2;
-        this.spawn({ layer: 'glow', x: ex + Math.cos(a) * T * 0.55, y: e.py + T * 0.15 + Math.sin(a) * T * 0.75, vx: -Math.cos(a) * 18, vy: -Math.sin(a) * 18 - 14, life: U.rand(0.8, 1.5), age: 0, r: U.rand(1, 2), rgb: '120,200,255' });
+        this.spawn({ layer: 'glow', x: ex + Math.cos(a) * T * 0.55, y: e.py + T * 0.15 + Math.sin(a) * T * 0.75, vx: -Math.cos(a) * 18, vy: -Math.sin(a) * 18 - 14, life: U.rand(0.8, 1.5), age: 0, r: U.rand(1, 2), rgb: '190,120,255' });
       }
     }
     for (const l of this.decorLights || []) {
       const lx = l.x * T + T / 2, ly = l.y * T + T * 0.4;
-      if (onScreen(lx, ly) && R(1.2)) this.spawn({ layer: 'glow', x: lx + U.rand(-10, 10), y: ly + U.rand(-6, 6), vx: U.rand(-4, 4), vy: U.rand(-16, -6), life: U.rand(1, 2), age: 0, r: U.rand(0.8, 1.6), rgb: l.color });
+      if (onScreen(lx, ly) && R(l.flicker ? 4 : 1.2)) this.spawn({ layer: 'glow', x: lx + U.rand(-8, 8), y: ly + U.rand(-6, 6), vx: U.rand(-6, 6), vy: U.rand(-40, -14), life: U.rand(0.6, 1.4), age: 0, r: U.rand(0.8, 1.6), rgb: l.color, wob: l.flicker ? Math.random() * 6 : 0 });
     }
     // poussière en suspension dans la lumière du joueur
     const p = this.player;
-    if (R(7)) this.spawn({ layer: 'glow', dust: true, x: p.px + T / 2 + U.rand(-T * 4, T * 4), y: p.py + T / 2 + U.rand(-T * 3, T * 3), vx: U.rand(-6, 6), vy: U.rand(-5, 3), life: U.rand(2.5, 4.5), age: 0, r: U.rand(0.6, 1.3), rgb: '200,215,255' });
-    if (G.state.flags.eveil && R(3)) this.spawn({ layer: 'glow', x: p.px + T / 2 + U.rand(-10, 10), y: p.py + T * 0.85, vx: U.rand(-5, 5), vy: U.rand(-40, -22), life: U.rand(0.6, 1.1), age: 0, r: U.rand(0.8, 1.6), rgb: '90,170,255' });
+    if (R(7)) this.spawn({ layer: 'glow', dust: true, x: p.px + T / 2 + U.rand(-T * 4, T * 4), y: p.py + T / 2 + U.rand(-T * 3, T * 3), vx: U.rand(-6, 6), vy: U.rand(-5, 3), life: U.rand(2.5, 4.5), age: 0, r: U.rand(0.6, 1.3), rgb: '230,210,180' });
     // lueurs qui montent du gouffre
     if (this.voidTiles && this.voidTiles.length && R(5)) {
       const [vx, vy] = U.pick(this.voidTiles);
       const x = vx * T + Math.random() * T, y = vy * T + Math.random() * T;
-      if (onScreen(x, y)) this.spawn({ layer: 'glow', x, y, vx: U.rand(-3, 3), vy: U.rand(-14, -6), life: U.rand(1.5, 3), age: 0, r: U.rand(0.7, 1.4), rgb: '110,150,255' });
+      if (onScreen(x, y)) this.spawn({ layer: 'world', x, y, vx: U.rand(-4, 4), vy: U.rand(-16, -8), life: U.rand(1.5, 2.5), age: 0, r: U.rand(4, 7), rgb: '90,84,78' });
     }
     for (const q of this.parts) {
       q.age += dt;
@@ -609,7 +617,7 @@
       const px = Math.random() * S, py = Math.random() * S, r = 30 + Math.random() * 70, a = 0.05 + Math.random() * 0.08;
       for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
         const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r);
-        g.addColorStop(0, `rgba(150,180,230,${a})`); g.addColorStop(1, 'rgba(150,180,230,0)');
+        g.addColorStop(0, `rgba(175,160,140,${a})`); g.addColorStop(1, 'rgba(175,160,140,0)');
         x.fillStyle = g;
         x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2);
       }

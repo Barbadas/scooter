@@ -40,7 +40,9 @@
       hunter: G.hunter.create(name),
       inventory: {}, gold: 0,
       flags: {}, quests: {}, removed: {}, opened: {},
-      shadows: [], shadowSlots: 2,   // ombres invoquées en combat (augmente avec l'histoire)
+      weapons: { couteau: { mag: 0 } }, equipped: 'couteau',
+      artifacts: {}, artifactEquipped: null,
+      territories: {},
       chapter: 0, pos: null, steps: 0,
     };
   }
@@ -78,7 +80,7 @@
   };
 
   G.gameOver = async function () {
-    const v = await G.ui.overlay('Vous êtes mort', 'Le Système ne tolère pas la faiblesse.', [
+    const v = await G.ui.overlay('Tu es mort', 'Les ruines ne pardonnent pas.', [
       { label: 'Charger la dernière sauvegarde', value: 'load', disabled: !G.save.exists() },
       { label: "Retour à l'écran titre", value: 'title' },
     ], true);
@@ -153,57 +155,124 @@
     G.battle.pointer((e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height);
   });
 
-  // ───────────── Fond animé de l'écran titre ─────────────
+  // ───────────── Fond animé de l'écran titre : une ville en ruines au crépuscule ─────────────
   const tcan = $('title-bg'), tctx = tcan.getContext('2d');
   const tParts = [];
-  const ARMY = [
-    ['chef_gobelin', -0.3, 0.9, 1.0], ['gobelin', -0.19, 0.84, 0.75], ['loup', -0.4, 0.8, 0.7], ['gobelin_archer', -0.12, 0.78, 0.55],
-    ['gardien', 0.3, 0.9, 0.9], ['gobelin', 0.2, 0.83, 0.75], ['loup', 0.41, 0.81, 0.7], ['gobelin', 0.12, 0.78, 0.55],
-  ];
+  let skyline = null;
+  function buildSkyline(w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const x = c.getContext('2d');
+    const layers = [
+      { base: h * 0.8, hmin: h * 0.08, hmax: h * 0.26, col: '#2b1912', win: 0.04 },
+      { base: h * 0.88, hmin: h * 0.1, hmax: h * 0.32, col: '#140c09', win: 0.07 },
+    ];
+    for (const L of layers) {
+      let px = -20;
+      while (px < w + 20) {
+        const bw = 26 + Math.random() * 70, bh = L.hmin + Math.random() * (L.hmax - L.hmin);
+        x.fillStyle = L.col;
+        x.beginPath();
+        x.moveTo(px, L.base);
+        x.lineTo(px, L.base - bh);
+        const steps = 3 + Math.floor(Math.random() * 4);
+        for (let i = 1; i <= steps; i++) x.lineTo(px + (bw * i) / steps, L.base - bh + (Math.random() - 0.3) * bh * 0.35);
+        x.lineTo(px + bw, L.base);
+        x.closePath();
+        x.fill();
+        for (let wy = L.base - bh + 12; wy < L.base - 8; wy += 12) {
+          for (let wx = px + 5; wx < px + bw - 6; wx += 10) {
+            if (Math.random() < L.win) { x.fillStyle = 'rgba(255,150,60,0.8)'; x.fillRect(wx, wy, 3, 4); }
+          }
+        }
+        px += bw + Math.random() * 6;
+      }
+      x.fillStyle = L.col;
+      x.fillRect(0, L.base, w, h - L.base);
+    }
+    return c;
+  }
+  // Tour Eiffel brisée : la pointe arrachée penche dans le vide
+  function eiffel(c, x, base, H) {
+    const wb = H * 0.42;
+    c.save();
+    c.translate(x, base);
+    c.fillStyle = '#1d120d';
+    c.beginPath();
+    c.moveTo(-wb / 2, 0);
+    c.quadraticCurveTo(-wb * 0.18, -H * 0.25, -wb * 0.09, -H * 0.42);
+    c.lineTo(wb * 0.09, -H * 0.42);
+    c.quadraticCurveTo(wb * 0.18, -H * 0.25, wb / 2, 0);
+    c.lineTo(wb * 0.33, 0);
+    c.quadraticCurveTo(0, -H * 0.19, -wb * 0.33, 0);
+    c.closePath();
+    c.fill();
+    c.fillRect(-wb * 0.27, -H * 0.22, wb * 0.54, H * 0.025);
+    c.beginPath();
+    c.moveTo(-wb * 0.1, -H * 0.42); c.lineTo(-wb * 0.05, -H * 0.7); c.lineTo(wb * 0.035, -H * 0.665); c.lineTo(wb * 0.1, -H * 0.42);
+    c.closePath();
+    c.fill();
+    c.fillRect(-wb * 0.13, -H * 0.445, wb * 0.26, H * 0.022);
+    c.strokeStyle = 'rgba(120,60,30,0.25)';
+    c.lineWidth = 1;
+    c.beginPath();
+    for (let i = 0; i < 6; i++) { const y = -H * (0.05 + i * 0.06); c.moveTo(-wb * (0.42 - i * 0.05), y); c.lineTo(wb * (0.42 - i * 0.05), y - H * 0.03); }
+    c.stroke();
+    c.save();
+    c.translate(-wb * 0.015, -H * 0.685);
+    c.rotate(-0.55);
+    c.beginPath();
+    c.moveTo(-wb * 0.035, 0); c.lineTo(-wb * 0.012, -H * 0.24); c.lineTo(wb * 0.012, -H * 0.24); c.lineTo(wb * 0.035, 0);
+    c.closePath();
+    c.fill();
+    c.restore();
+    c.restore();
+  }
   function renderTitleBg(dt) {
     if ($('title').hidden) return;
     if (G.assets.has('fond_titre')) { tcan.hidden = true; return; } // l'image fournie remplace l'animation
     const w = tcan.clientWidth, h = tcan.clientHeight;
     if (!w || !h) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (tcan.width !== Math.round(w * dpr) || tcan.height !== Math.round(h * dpr)) { tcan.width = Math.round(w * dpr); tcan.height = Math.round(h * dpr); }
-    const c = tctx, t = G.time;
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const bg = c.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#02040a'); bg.addColorStop(1, '#0a0820');
-    c.fillStyle = bg; c.fillRect(0, 0, w, h);
-    const px = w / 2, py = h * 0.36, S = Math.min(w * 0.9, h * 0.95);
-    // portail géant derrière le titre
-    c.save();
-    c.translate(px, py + S * 0.5);
-    G.placeholders.portail(c, S, { t: t * 0.6 });
-    c.restore();
-    // cercle runique au sol
-    G.battle.runeCircle(c, px, h * 0.9, Math.min(w * 0.42, h * 0.55), '63,180,255', t * 0.15, 0.35);
-    // l'armée des ombres émerge de chaque côté
-    const unit = Math.min(w, h * 1.2);
-    for (const [key, xk, yk, sk] of ARMY) {
-      const m = G.assets.manifest[key] || { size: 1 };
-      const scale = (unit * 0.16 * sk) / (m.size * G.config.TILE);
-      G.assets.draw(c, key, px + xk * unit, h * yk, { dir: xk < 0 ? 'right' : 'left', t: t + xk * 7, shadow: true, scale, alpha: 0.55 + 0.25 * Math.sin(t * 1.3 + xk * 9) });
+    if (tcan.width !== Math.round(w * dpr) || tcan.height !== Math.round(h * dpr)) {
+      tcan.width = Math.round(w * dpr); tcan.height = Math.round(h * dpr);
+      skyline = buildSkyline(w, h);
     }
-    // le héros, de dos, face au portail
-    const hs = (h * 0.2) / (1.3 * G.config.TILE);
-    G.assets.draw(c, 'heros', px, h * 0.93, { dir: 'up', t, scale: hs, glow: true });
-    // particules qui montent
-    if (tParts.length < 90 && Math.random() < dt * 30) tParts.push({ x: Math.random() * w, y: h + 10, vy: -20 - Math.random() * 50, r: 0.8 + Math.random() * 2, life: 3 + Math.random() * 3, age: 0, rgb: Math.random() < 0.6 ? '90,170,255' : '160,120,255' });
+    const c = tctx, t = G.time, px = w / 2;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const sky = c.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, '#0a0607'); sky.addColorStop(0.45, '#3a1610'); sky.addColorStop(0.72, '#a3441c'); sky.addColorStop(1, '#140c09');
+    c.fillStyle = sky; c.fillRect(0, 0, w, h);
+    // lueur d'incendie à l'horizon
+    const glow = c.createRadialGradient(px + w * 0.12, h * 0.74, 0, px + w * 0.12, h * 0.74, Math.max(w, h) * 0.55);
+    glow.addColorStop(0, 'rgba(255,150,60,0.55)'); glow.addColorStop(1, 'rgba(255,150,60,0)');
+    c.fillStyle = glow; c.fillRect(0, 0, w, h);
+    // fumées qui dérivent
+    for (let i = 0; i < 7; i++) {
+      const sx = ((i * 0.23 + t * 0.006 * (1 + i % 3)) % 1.4 - 0.2) * w, sy = h * (0.2 + (i % 4) * 0.1), r = Math.min(w, h) * (0.25 + (i % 3) * 0.08);
+      const g = c.createRadialGradient(sx, sy, 0, sx, sy, r);
+      g.addColorStop(0, 'rgba(20,12,10,0.55)'); g.addColorStop(1, 'rgba(20,12,10,0)');
+      c.fillStyle = g; c.fillRect(sx - r, sy - r, r * 2, r * 2);
+    }
+    eiffel(c, px + w * 0.16, h * 0.82, Math.min(h * 0.62, w * 0.9));
+    if (skyline) c.drawImage(skyline, 0, 0, w, h);
+    // drapeau du clan et survivant de dos, fusil à l'épaule
+    const unit = h * 0.2 / (1.3 * G.config.TILE);
+    G.assets.draw(c, 'drapeau', px - Math.min(w * 0.22, h * 0.3), h * 0.96, { t, scale: unit * 1.1 });
+    G.assets.draw(c, 'heros', px, h * 0.95, { dir: 'up', t, scale: unit, weapon: 'rifle' });
+    // braises qui montent
+    if (tParts.length < 110 && Math.random() < dt * 40) tParts.push({ x: Math.random() * w, y: h + 10, vy: -25 - Math.random() * 60, r: 0.8 + Math.random() * 2, life: 3 + Math.random() * 3, age: 0, rgb: Math.random() < 0.7 ? '255,150,60' : '255,210,140' });
     c.save();
     c.globalCompositeOperation = 'lighter';
     for (const q of tParts) {
-      q.age += dt; q.y += q.vy * dt; q.x += Math.sin(q.age * 2 + q.r) * 8 * dt;
-      const a = Math.min(1, q.age) * Math.max(0, 1 - q.age / q.life);
-      c.globalAlpha = a;
+      q.age += dt; q.y += q.vy * dt; q.x += Math.sin(q.age * 2 + q.r) * 14 * dt;
+      c.globalAlpha = Math.min(1, q.age) * Math.max(0, 1 - q.age / q.life);
       c.drawImage(G.scenes.overworld.glowSprite(q.rgb), q.x - q.r * 3, q.y - q.r * 3, q.r * 6, q.r * 6);
     }
     c.restore();
     for (let i = tParts.length - 1; i >= 0; i--) if (tParts[i].age > tParts[i].life) tParts.splice(i, 1);
     const v = c.createRadialGradient(px, h * 0.45, Math.min(w, h) * 0.3, px, h * 0.45, Math.max(w, h) * 0.75);
-    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.75)');
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.7)');
     c.fillStyle = v; c.fillRect(0, 0, w, h);
   }
 
@@ -242,7 +311,7 @@
     requestAnimationFrame(frame);
   }
 
-  // Outils de test (console du navigateur) : G.debug.xp(200), G.debug.learn('extraction')…
+  // Outils de test (console du navigateur) : G.debug.xp(200), G.debug.weapon('fusil'), G.debug.artifact('loup')…
   G.debug = {
     xp(n = 100) { G.hunter.gainXp(n); },
     learn(id) { G.hunter.learn(id); },
@@ -250,7 +319,8 @@
     heal() { const d = G.hunter.derived(G.state.hunter); G.state.hunter.hp = d.maxHp; G.state.hunter.mp = d.maxMp; },
     give(id, q = 1) { G.inventory.add(id, q); },
     go(map, x, y) { G.scenes.overworld.load(map, x, y); },
-    shadow(base) { const e = G.data.enemies[base]; G.state.shadows.push({ id: `ombre_${Date.now()}`, base, name: e.shadowName || e.name }); },
+    weapon(id, ammo = 30) { G.weapons.give(id, ammo); },
+    artifact(id = 'loup') { G.artifacts.give(id); },
   };
 
   // ───────────── Démarrage ─────────────

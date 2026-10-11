@@ -1,6 +1,6 @@
 /* Entrées clavier + tactiles.
    Actions : up, down, left, right, ok, cancel, menu.
-   Les écrans (dialogue, menus, Système) s'empilent : seul celui du dessus reçoit les actions. */
+   Les écrans (dialogue, menus, messages) s'empilent : seul celui du dessus reçoit les actions. */
 (function () {
   // e.code = position physique : WASD en QWERTY = ZQSD en AZERTY
   const CODES = {

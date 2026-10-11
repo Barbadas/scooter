@@ -1,4 +1,4 @@
-/* Interface : dialogues, fenêtres du Système, menus, notifications, HUD. */
+/* Interface : dialogues, messages radio, menus, notifications, HUD. */
 (function () {
   const $ = id => document.getElementById(id);
   const U = G.U;
@@ -105,11 +105,11 @@
   };
   ui.hideDialogue = () => { dlg.hidden = true; };
 
-  // ───────────── Fenêtre du Système (message / choix) ─────────────
+  // ───────────── Fenêtre de message (radio / décision) ─────────────
   const sm = $('sysmsg'), smBox = sm.querySelector('.sysmsg-box');
   const smTitle = $('sysmsg-title'), smText = $('sysmsg-text'), smMenu = $('sysmsg-menu'), smOk = $('sysmsg-ok');
   function openSys(title, text, alert) {
-    smTitle.textContent = `[ ${title} ]`;
+    smTitle.textContent = title;
     smText.textContent = text;
     smBox.classList.toggle('alert', !!alert);
     sm.hidden = false;
@@ -119,7 +119,7 @@
   }
   ui.system = function (text, title, alert) {
     return new Promise(resolve => {
-      openSys(title || 'Notification', text, alert);
+      openSys(title || 'Radio', text, alert);
       smMenu.innerHTML = '';
       smOk.hidden = false;
       let ready = false;
@@ -136,7 +136,7 @@
     });
   };
   ui.choice = async function (text, labels, title) {
-    openSys(title || 'Système', text, false);
+    openSys(title || 'Décision', text, false);
     smOk.hidden = true;
     sm.onclick = null;
     const v = await ui.menu(smMenu, labels.map((label, i) => ({ label, value: i })), { cancel: false });
@@ -146,13 +146,14 @@
 
   // ───────────── Notifications ─────────────
   const toasts = $('toasts');
-  const HEADS = { level: 'Niveau supérieur', skill: 'Compétence', quest: 'Quête', hint: 'Système', system: 'Notification' };
+  const HEADS = { level: 'Niveau supérieur', skill: 'Nouveau', quest: 'Mission', hint: 'Journal', system: 'Radio' };
   ui.notify = function (text, kind = 'system', head) {
     const el = document.createElement('div');
     el.className = 'toast syswin ' + kind;
-    el.innerHTML = `<b>[ ${U.esc(head || HEADS[kind] || 'Système')} ]</b>${U.esc(text)}`;
+    el.innerHTML = `<b>${U.esc(head || HEADS[kind] || 'Journal')}</b>${U.esc(text)}`;
     toasts.appendChild(el);
-    while (toasts.children.length > 4) toasts.firstChild.remove();
+    const max = window.innerWidth < 700 ? 2 : 4;   // petit écran : on n'empile pas sur la carte
+    while (toasts.children.length > max) toasts.firstChild.remove();
     setTimeout(() => {
       el.classList.add('out');
       setTimeout(() => el.remove(), 450);
@@ -185,7 +186,7 @@
   // ───────────── Écrans plein cadre (fin de chapitre, game over) ─────────────
   const ov = $('overlay');
   ui.overlay = async function (title, sub, options, alert) {
-    $('overlay-title').textContent = `[ ${title} ]`;
+    $('overlay-title').textContent = title;
     $('overlay-sub').textContent = sub || '';
     ov.querySelector('.overlay-box').classList.toggle('alert', !!alert);
     ov.hidden = false;
@@ -216,18 +217,20 @@
     const show = !!st && G.scene === G.scenes.overworld && !G.battle.active && fadeState.a < 0.5;
     if (!show) { if (!hud.hidden) { hud.hidden = true; hudSig = ''; } return; }
     const h = st.hunter, d = G.hunter.derived(h);
-    const sig = [h.name, h.level, h.hp, h.mp, d.maxHp, d.maxMp, st.flags.eveil, st.flags.systeme, G.scenes.overworld.mapName].join('|');
+    const wid = st.equipped, wtxt = wid && st.weapons[wid] ? `${G.data.weapons[wid].name} · ${G.weapons.ammoText(wid)}` : '';
+    const sig = [h.name, h.level, h.hp, h.mp, d.maxHp, d.maxMp, wtxt, G.scenes.overworld.mapName].join('|');
     if (sig === hudSig) return;
     hudSig = sig;
     hud.hidden = false;
     $('hud-name').textContent = h.name;
-    $('hud-lvl').textContent = st.flags.eveil ? `Niv. ${h.level}` : 'Rang E';
+    $('hud-lvl').textContent = `Niv. ${h.level}`;
     $('hud-hp').style.width = `${Math.round(100 * U.clamp(h.hp / d.maxHp, 0, 1))}%`;
     $('hud-mp').style.width = `${Math.round(100 * U.clamp(h.mp / d.maxMp, 0, 1))}%`;
     $('hud-hp-txt').textContent = `${h.hp}/${d.maxHp}`;
     $('hud-mp-txt').textContent = `${h.mp}/${d.maxMp}`;
     $('hud-map').textContent = G.scenes.overworld.mapName || '';
-    $('hud-system').hidden = !st.flags.systeme;
+    $('hud-weapon').textContent = wtxt;
+    $('hud-system').hidden = false;
   };
 
   G.ui = ui;

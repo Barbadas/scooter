@@ -27,32 +27,36 @@
       // — Personnages —
       heros:           { src: null, size: 1.3 },
       pnj_mira:        { src: null, size: 1.3 },
-      // — Monstres —
-      rat_geant:       { src: null, size: 1.0 },
-      loup:            { src: null, size: 1.25 },
-      gobelin:         { src: null, size: 1.1 },
-      gobelin_archer:  { src: null, size: 1.1 },
-      chef_gobelin:    { src: null, size: 1.8 },
-      gardien:         { src: null, size: 2.1 },
-      gardien_fissure: { src: null, size: 2.1, ph: 'gardien_fissure' },
+      forme_loup:      { src: null, size: 1.65 },   // transformation (artefact du loup)
+      // — Ennemis —
+      chien:           { src: null, size: 1.15 },
+      pillard:         { src: null, size: 1.3 },
+      pillard_tireur:  { src: null, size: 1.3 },
+      tireur_elite:    { src: null, size: 1.3 },
+      kross:           { src: null, size: 1.75 },
       // — Décor —
-      statue:          { src: null, size: 2.0 },
-      autel:           { src: null, size: 1.1 },
+      caisse:          { src: null, size: 0.85 },
+      caisse_ouverte:  { src: null, size: 0.85 },
+      caisse_medocs:   { src: null, size: 0.85 },
+      baril:           { src: null, size: 1.0 },
+      epave:           { src: null, size: 1.8 },
+      barricade:       { src: null, size: 1.4 },
+      abri:            { src: null, size: 1.7 },
+      pilier:          { src: null, size: 2.0 },
+      escalier:        { src: null, size: 1.4, flat: true },
+      drapeau:         { src: null, size: 2.0 },
       portail:         { src: null, size: 1.7, flat: true },
-      coffre:          { src: null, size: 0.85 },
-      coffre_ouvert:   { src: null, size: 0.85 },
-      brasero:         { src: null, size: 1.0 },
-      tente:           { src: null, size: 1.7 },
       // — Tuiles (48×48 conseillé ; `variants: N` = bande de N tuiles côte à côte) —
-      tuile_sol:       { src: null, tile: true },
-      tuile_sol2:      { src: null, tile: true },
-      tuile_temple:    { src: null, tile: true },
-      tuile_mur:       { src: null, tile: true },
-      tuile_vide:      { src: null, tile: true },
+      tuile_sol:       { src: null, tile: true },   // bitume
+      tuile_sol2:      { src: null, tile: true },   // terre, gravats
+      tuile_carrelage: { src: null, tile: true },   // sol du métro
+      tuile_mur:       { src: null, tile: true },   // ruines
+      tuile_vide:      { src: null, tile: true },   // cratère
       // — Portraits de dialogue (carré conseillé, 256×256) —
       portrait_heros:  { src: null },
       portrait_mira:   { src: null },
-      portrait_kargash:{ src: null },
+      portrait_chef:   { src: null },
+      portrait_kross:  { src: null },
       // — Fonds —
       fond_titre:      { src: null },
     },
@@ -73,7 +77,7 @@
     src(key) { return this.img[key] ? this.manifest[key].src : null; },
 
     /* Dessine le sprite `key` centré en x, pieds posés en y.
-       o = { dir, t, moving, anim, scale, alpha, flash (0-1), shadow (bool), glow } */
+       o = { dir, t, moving, anim, scale, alpha, flash (0-1), rot, pose, weapon } */
     draw(ctx, key, cx, by, o = {}) {
       const m = this.manifest[key] || {};
       const size = (m.size || 1) * G.config.TILE * (o.scale || 1);
@@ -108,13 +112,7 @@
         }
         if (o.rot) ctx.rotate(o.rot);
         if (flip) ctx.scale(-1, 1);
-        if (o.shadow) {
-          ctx.shadowColor = '#8b5cf6'; ctx.shadowBlur = 16;
-          ctx.drawImage(tinted(img, sx, sy, sw, sh, dw, dh, '#120a26', 0.8), -dw / 2, -dh, dw, dh);
-          ctx.shadowBlur = 0;
-        } else {
-          ctx.drawImage(img, sx, sy, sw, sh, -dw / 2, -dh, dw, dh);
-        }
+        ctx.drawImage(img, sx, sy, sw, sh, -dw / 2, -dh, dw, dh);
         if (o.flash > 0) {
           ctx.globalAlpha *= Math.min(1, o.flash);
           ctx.drawImage(tinted(img, sx, sy, sw, sh, dw, dh, '#ffffff', 1), -dw / 2, -dh, dw, dh);
@@ -191,7 +189,7 @@
     return { frames: [0], fps: 1, flip: false, loop: true };
   }
 
-  // Teinte une image (flash blanc, version « ombre »)
+  // Teinte une image (flash blanc)
   const tmp = document.createElement('canvas');
   const tctx = tmp.getContext('2d');
   function tinted(img, sx, sy, sw, sh, dw, dh, color, amount) {

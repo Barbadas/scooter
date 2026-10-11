@@ -57,7 +57,7 @@
 
   G.U = U;
 
-  // Remplace {nom} par le nom du chasseur
+  // Remplace {nom} par le nom du héros
   G.fmt = s => String(s == null ? '' : s)
     .replace(/\{nom\}/g, (G.state && G.state.hunter && G.state.hunter.name) || G.config.DEFAULT_NAME);
 })();

@@ -1,94 +1,106 @@
-/* Compétences (joueur, ombres et monstres).
-   ────────────────────────────────────────
-   Ajouter un pouvoir = ajouter une entrée ici, puis le débloquer :
-     • par niveau  → unlockLevel: 5
+/* Techniques (joueur, forme bestiale et ennemis).
+   ─────────────────────────────────────────────
+   Ajouter une technique = ajouter une entrée ici, puis la débloquer :
+     • par niveau     → unlockLevel: 5
      • par l'histoire → étape { learn: 'id' } dans story.js
 
-   cost   : PM consommés
+   cost   : ÉN (énergie) consommée
    target : 'enemy' (un adversaire) · 'enemies' (tous) · 'self' · 'ally' · 'allies'
-   anim   : 'melee' (le lanceur fonce sur la cible) · 'ranged' (projectile) · 'cast' (aura)
-   color  : couleur des effets
-   vfx    : effet visuel à l'impact — 'slash' · 'cross' · 'claw' · 'smash' · 'quake' · 'dread'
+   anim   : 'melee' (fonce au contact) · 'cast' (aura) · 'throw' (lancer)
+   color  : couleur des effets · vfx : 'slash' · 'cross' · 'claw' · 'smash' · 'dread' · 'blast'
+   beast  : technique de la forme bestiale (remplace les armes une fois transformé)
+   useWeapon : 'own' = attaque avec l'arme de l'ennemi, ou une arme décrite comme dans weapons.js
    effects (appliqués dans l'ordre) :
-     { type: 'damage', power: 1.2, hits: 2, magic: false, critBonus: 0.1,
-       bleed: { chance: 0.3, dmg: 4, turns: 3 } }
-     { type: 'heal', power: 1.5 }        // soigne (puissance × MAG)
-     { type: 'mod', stat: 'atk'|'def'|'spd'|'mag', mult: 0.7, turns: 3 }
-   passive: true → n'apparaît pas dans le menu de combat (ex. Extraction). */
+     { type: 'damage', power, hits, stat: 'atk' | 'tir', acc, critBonus, sure,
+       bleed: { chance, dmg, turns } }
+     { type: 'healPct', pct: 0.35 }                 // soin en % des PV max
+     { type: 'mod', stat: 'atk'|'tir'|'def'|'spd'|'eva', mult, turns } */
 G.data.skills = {
-  // ───────────── Joueur ─────────────
-  attaque: {
-    name: 'Attaque',
-    target: 'enemy', anim: 'melee', color: '#cfe6ff', vfx: 'slash',
-    effects: [{ type: 'damage', power: 1 }],
+  // ───────────── Techniques du survivant ─────────────
+  lame_double: {
+    name: 'Lame double',
+    desc: 'Deux coups de couteau éclair (2 × 75 %), 20 % de saignement chacun.',
+    cost: 4, target: 'enemy', anim: 'melee', color: '#f2d0a0', vfx: 'slash', shown: 'knife',
+    effects: [{ type: 'damage', power: 0.75, hits: 2, stat: 'atk', acc: 0.97, bleed: { chance: 0.2, dmg: 3, turns: 3 } }],
   },
-  frappe_rapide: {
-    name: 'Frappe rapide',
-    desc: 'Deux coups de dague ultra-rapides (2 × 75 %).',
-    cost: 4, target: 'enemy', anim: 'melee', color: '#7fd4ff', vfx: 'slash',
-    effects: [{ type: 'damage', power: 0.75, hits: 2 }],
+  premiers_soins: {
+    name: 'Premiers soins',
+    desc: 'Bandage de fortune : restaure 35 % des PV.',
+    cost: 8, unlockLevel: 2, target: 'self', anim: 'cast', color: '#7fd18b',
+    effects: [{ type: 'healPct', pct: 0.35 }],
   },
-  coup_vital: {
-    name: 'Coup vital',
-    desc: 'Vise un point vital : 190 % de dégâts, +25 % de chance de critique.',
-    cost: 10, unlockLevel: 3, target: 'enemy', anim: 'melee', color: '#ffd166', vfx: 'cross',
-    effects: [{ type: 'damage', power: 1.9, critBonus: 0.25 }],
+  coup_grace: {
+    name: 'Coup de grâce',
+    desc: 'La lame vise un point vital : 190 % de dégâts, critique +25 %.',
+    cost: 10, unlockLevel: 3, target: 'enemy', anim: 'melee', color: '#ffd166', vfx: 'cross', shown: 'knife',
+    effects: [{ type: 'damage', power: 1.9, critBonus: 0.25, stat: 'atk', acc: 0.95 }],
   },
-  soif_de_sang: {
-    name: 'Soif de sang',
-    desc: 'Une aura meurtrière paralyse les ennemis : ATQ −30 % et DÉF −20 % pendant 3 tours.',
-    cost: 12, target: 'enemies', anim: 'cast', color: '#ff4d5e', vfx: 'dread',
+  intimidation: {
+    name: 'Intimidation',
+    desc: 'Un regard qui glace le sang : ATQ et TIR ennemis −30 %, DÉF −20 % pendant 3 tours.',
+    cost: 12, unlockLevel: 5, target: 'enemies', anim: 'cast', color: '#e0412b', vfx: 'dread',
     effects: [
       { type: 'mod', stat: 'atk', mult: 0.7, turns: 3 },
+      { type: 'mod', stat: 'tir', mult: 0.7, turns: 3 },
       { type: 'mod', stat: 'def', mult: 0.8, turns: 3 },
     ],
   },
-  extraction: {
-    name: "Extraction d'ombre",
-    desc: "Après un combat, tente d'arracher l'ombre d'un ennemi vaincu pour en faire un soldat. « Lève-toi. »",
-    passive: true,
+
+  // ───────────── Forme bestiale (artefacts) ─────────────
+  griffes: {
+    name: 'Griffes', beast: true,
+    desc: 'Deux coups de griffes (2 × 95 %).',
+    target: 'enemy', anim: 'melee', color: '#f2b25c', vfx: 'claw',
+    effects: [{ type: 'damage', power: 0.95, hits: 2, stat: 'atk', acc: 0.97 }],
+  },
+  crocs: {
+    name: 'Crocs', beast: true,
+    desc: 'Morsure féroce : 170 % de dégâts, saignement garanti.',
+    target: 'enemy', anim: 'melee', color: '#e0412b', vfx: 'claw',
+    effects: [{ type: 'damage', power: 1.7, stat: 'atk', acc: 0.95, bleed: { chance: 1, dmg: 6, turns: 3 } }],
+  },
+  hurlement_bestial: {
+    name: 'Hurlement bestial', beast: true,
+    desc: 'Un cri qui paralyse : ATQ et TIR ennemis −25 % pendant 2 tours.',
+    target: 'enemies', anim: 'cast', color: '#f2b25c', vfx: 'dread',
+    effects: [
+      { type: 'mod', stat: 'atk', mult: 0.75, turns: 2 },
+      { type: 'mod', stat: 'tir', mult: 0.75, turns: 2 },
+    ],
   },
 
-  // ───────────── Monstres ─────────────
+  // ───────────── Ennemis ─────────────
+  arme: { name: 'Attaque', target: 'enemy', useWeapon: 'own' },
   morsure: {
-    name: 'Morsure', target: 'enemy', anim: 'melee', color: '#ff6b6b', vfx: 'claw',
-    effects: [{ type: 'damage', power: 1, bleed: { chance: 0.25, dmg: 3, turns: 3 } }],
+    name: 'Morsure', target: 'enemy', anim: 'melee', color: '#e0412b', vfx: 'claw',
+    effects: [{ type: 'damage', power: 1, stat: 'atk', acc: 0.95, bleed: { chance: 0.25, dmg: 3, turns: 3 } }],
+  },
+  charge: {
+    name: 'Charge', target: 'enemy', anim: 'melee', color: '#c9b08a', vfx: 'smash',
+    effects: [{ type: 'damage', power: 1.3, stat: 'atk', acc: 0.9 }],
   },
   hurlement: {
     name: 'Hurlement', target: 'allies', anim: 'cast', color: '#e0c27c',
     effects: [{ type: 'mod', stat: 'atk', mult: 1.25, turns: 3 }],
   },
-  coup_dague: {
-    name: 'Coup de dague', target: 'enemy', anim: 'melee', color: '#c7d0da', vfx: 'slash',
-    effects: [{ type: 'damage', power: 1.15 }],
+  coup_couteau: {
+    name: 'Coup de couteau', target: 'enemy', anim: 'melee', color: '#d8d0c0', vfx: 'slash', shown: 'knife',
+    effects: [{ type: 'damage', power: 1.15, stat: 'atk', acc: 0.95, bleed: { chance: 0.15, dmg: 3, turns: 2 } }],
   },
-  tir: {
-    name: 'Tir de flèche', target: 'enemy', anim: 'ranged', color: '#e8d9a8',
-    effects: [{ type: 'damage', power: 1.05 }],
-  },
-  frappe_titan: {
-    name: 'Frappe du titan', target: 'enemy', anim: 'melee', color: '#ff2b4a', vfx: 'smash',
-    effects: [{ type: 'damage', power: 3, critBonus: -1 }],
-  },
-  ecrasement: {
-    name: 'Écrasement', target: 'enemy', anim: 'melee', color: '#c3cad6', vfx: 'smash',
-    effects: [{ type: 'damage', power: 1.5 }],
-  },
-  regard_ecarlate: {
-    name: 'Regard écarlate', target: 'enemy', anim: 'cast', color: '#ff3355',
-    effects: [{ type: 'mod', stat: 'def', mult: 0.7, turns: 2 }],
-  },
-  massue: {
-    name: 'Coup de massue', target: 'enemy', anim: 'melee', color: '#e8a25a', vfx: 'smash',
-    effects: [{ type: 'damage', power: 1.6 }],
+  grenade_e: {
+    name: 'Grenade', target: 'enemies', anim: 'throw', color: '#ffb347', vfx: 'blast',
+    effects: [{ type: 'damage', power: 0.85, stat: 'tir', sure: true }],
   },
   cri_guerre: {
     name: 'Cri de guerre', target: 'self', anim: 'cast', color: '#ff7a3c',
-    effects: [{ type: 'mod', stat: 'atk', mult: 1.35, turns: 3 }],
+    effects: [
+      { type: 'mod', stat: 'atk', mult: 1.35, turns: 3 },
+      { type: 'mod', stat: 'tir', mult: 1.35, turns: 3 },
+    ],
   },
-  seisme: {
-    name: 'Séisme', target: 'enemies', anim: 'cast', color: '#d9a066', vfx: 'quake',
-    effects: [{ type: 'damage', power: 0.95 }],
+  rafale_mortelle: {
+    name: 'Rafale', target: 'enemy',
+    useWeapon: { kind: 'gun', sprite: 'mg', power: 0.9, hits: 6, acc: 1.2, crit: 0 },
   },
 };
 for (const id in G.data.skills) G.data.skills[id].id = id;

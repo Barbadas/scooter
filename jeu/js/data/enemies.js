@@ -1,63 +1,64 @@
-/* Monstres.
-   sprite      : clé dans assets.js
-   skills      : [[id, poids], ...] — tirage pondéré à chaque tour
-   drops       : [[objet, chance], ...]
-   extractable : peut devenir une ombre (une fois l'Extraction débloquée)
-   extractChance : chance de réussite de l'extraction (0-1) · shadowName : nom une fois devenu ombre
-   battleScale : taille en combat (1.5 par défaut)
-   ai          : nom d'une IA spéciale définie dans battle.js (boss) */
+/* Ennemis.
+   sprite   : clé dans assets.js · weapon : arme utilisée (weapons.js), munitions illimitées
+   atk      : corps à corps · tir : armes à feu (= atk par défaut)
+   skills   : [[id, poids], ...] — tirage pondéré à chaque tour ('arme' = tirer / frapper avec son arme)
+   drops    : [[objet, chance, quantité], ...]
+   threat   : niveau de menace affiché
+   battleScale : taille en combat (1.5 par défaut) · ai : IA spéciale (battle.js) */
 G.data.enemies = {
-  rat_geant: {
-    name: 'Rat géant', rank: 'E', sprite: 'rat_geant',
-    hp: 26, atk: 11, def: 2, mag: 0, spd: 9, crit: 0.05, eva: 0.04,
-    xp: 8, gold: 3,
-    skills: [['attaque', 3], ['morsure', 2]],
-    drops: [['potion', 0.12]],
+  chien: {
+    name: 'Chien errant', threat: 'Faible', sprite: 'chien',
+    hp: 26, atk: 11, def: 2, spd: 11, crit: 0.06, eva: 0.06,
+    xp: 8, gold: 2,
+    skills: [['morsure', 3], ['charge', 1]],
+    drops: [['trousse', 0.08, 1]],
   },
-  gardien: {
-    name: 'Gardien de pierre', rank: '?', sprite: 'gardien',
-    hp: 9999, atk: 60, def: 999, mag: 0, spd: 6, crit: 0, eva: 0,
-    xp: 0, gold: 0, boss: true, battleScale: 1.25,
-    skills: [['frappe_titan', 1]],
+  chien_alpha: {
+    name: 'Chien de meute', threat: 'Moyenne', sprite: 'chien',
+    hp: 40, atk: 15, def: 3, spd: 14, crit: 0.08, eva: 0.08,
+    xp: 14, gold: 3,
+    skills: [['morsure', 3], ['charge', 2], ['hurlement', 1]],
+    drops: [['trousse', 0.15, 1]],
   },
-  gardien_fissure: {
-    name: 'Gardien fissuré', rank: 'C', sprite: 'gardien_fissure',
-    hp: 120, atk: 14, def: 6, mag: 8, spd: 7, crit: 0.05, eva: 0,
-    xp: 50, gold: 30, boss: true, battleScale: 1.25,
-    skills: [['attaque', 3], ['ecrasement', 2], ['regard_ecarlate', 1]],
-    drops: [['potion', 1]],
-  },
-  loup: {
-    name: 'Loup des cavernes', rank: 'D', sprite: 'loup',
-    hp: 40, atk: 15, def: 3, mag: 0, spd: 15, crit: 0.08, eva: 0.08,
-    xp: 14, gold: 5,
-    skills: [['attaque', 3], ['morsure', 3], ['hurlement', 1]],
-    drops: [['potion', 0.15]],
-    extractable: true, extractChance: 0.5,
-  },
-  gobelin: {
-    name: 'Gobelin', rank: 'D', sprite: 'gobelin',
-    hp: 44, atk: 14, def: 5, mag: 0, spd: 10, crit: 0.06, eva: 0.05,
+  pillard: {
+    name: 'Pillard Vipère', threat: 'Moyenne', sprite: 'pillard', weapon: 'couteau',
+    hp: 42, atk: 14, def: 5, spd: 10, crit: 0.06, eva: 0.05,
     xp: 16, gold: 8,
-    skills: [['attaque', 3], ['coup_dague', 2]],
-    drops: [['potion', 0.2], ['potion_mana', 0.1]],
-    extractable: true, extractChance: 0.6,
+    skills: [['arme', 3], ['coup_couteau', 2]],
+    drops: [['trousse', 0.2, 1], ['mun_9mm', 0.35, 4]],
   },
-  gobelin_archer: {
-    name: 'Gobelin archer', rank: 'D', sprite: 'gobelin_archer',
-    hp: 34, atk: 16, def: 3, mag: 0, spd: 12, crit: 0.1, eva: 0.06,
+  pillard_tireur: {
+    name: 'Tireur Vipère', threat: 'Moyenne', sprite: 'pillard_tireur', weapon: 'pistolet',
+    hp: 34, atk: 9, tir: 15, def: 3, spd: 12, crit: 0.08, eva: 0.06,
     xp: 18, gold: 10,
-    skills: [['tir', 1]],
-    drops: [['potion_mana', 0.2]],
-    extractable: true, extractChance: 0.55,
+    skills: [['arme', 1]],
+    drops: [['mun_9mm', 0.6, 6], ['stimulant', 0.15, 1]],
   },
-  chef_gobelin: {
-    name: 'Kargash, chef de guerre', shadowName: 'Kargash', rank: 'C', sprite: 'chef_gobelin',
-    hp: 280, atk: 23, def: 10, mag: 0, spd: 11, crit: 0.08, eva: 0.03,
-    xp: 180, gold: 120, boss: true, battleScale: 1.3,
-    skills: [['attaque', 3], ['massue', 2], ['seisme', 1], ['cri_guerre', 1]],
-    ai: 'kargash',
-    drops: [['elixir', 1]],
-    extractable: true, extractChance: 0.35,
+  tireur_elite: {
+    name: 'Tireur d’élite', threat: 'Élevée', sprite: 'tireur_elite', weapon: 'fusil',
+    hp: 30, atk: 8, tir: 20, def: 2, spd: 8, crit: 0.12, eva: 0.04,
+    xp: 22, gold: 14,
+    skills: [['arme', 1]],
+    drops: [['mun_fusil', 0.7, 2]],
+  },
+  rico: {
+    name: 'Rico, pillard Vipère', threat: 'Élevée', sprite: 'pillard_tireur', weapon: 'pistolet',
+    hp: 110, atk: 13, tir: 12, def: 5, spd: 9, crit: 0.06, eva: 0.04,
+    xp: 50, gold: 25, boss: true, battleScale: 1.6,
+    skills: [['arme', 3], ['coup_couteau', 2]],
+    drops: [['mun_9mm', 1, 10], ['trousse', 1, 1]],
+  },
+  kross_intro: {
+    name: 'Kross, lieutenant des Vipères', threat: 'Mortelle', sprite: 'kross', weapon: 'mitrailleuse',
+    hp: 9999, atk: 40, tir: 60, def: 999, spd: 6, crit: 0, eva: 0,
+    xp: 0, gold: 0, boss: true, battleScale: 1.3,
+    skills: [['rafale_mortelle', 1]],
+  },
+  kross: {
+    name: 'Kross, lieutenant des Vipères', threat: 'Élevée', sprite: 'kross', weapon: 'mitrailleuse',
+    hp: 260, atk: 20, tir: 17, def: 10, spd: 11, crit: 0.06, eva: 0.03,
+    xp: 180, gold: 120, boss: true, battleScale: 1.3, ai: 'kross',
+    skills: [['arme', 4], ['grenade_e', 1], ['cri_guerre', 1]],
+    drops: [['kit_chirurgical', 1, 1]],
   },
 };
