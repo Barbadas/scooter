@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- artifact:start -->
+<title>Cockpit MBA</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Minuteur de concentration, planning, modules et flashcards pour réviser un MBA Manager de Business Unit.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@300..500&display=swap">
+<style>
+/* Layout : coque d'application — en-tête collant avec onglets (barre basse sur mobile), une vue à la fois ; la vue Focus = cadran + colonne latérale */
+:root {
+  --paper: #EDF1EF;
+  --surface: #FFFFFF;
+  --sunken: #E1E7E5;
+  --ink: #15242A;
+  --muted: #53646A;
+  --faint: #8B999D;
+  --line: #D0D9D7;
+  --accent: #8A2A3A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F3E2E5;
+  --rest: #2D7154;
+  --rest-soft: #DBEDE3;
+  --ok: #2B7A4C;
+  --warn: #A4610A;
+  --bad: #B3261E;
+  --on-bad: #FFFFFF;
+  --m1: #2F6E8E; --m2: #B0702A; --m3: #6D5BA8; --m4: #3F8A5F;
+  --m5: #B54B5E; --m6: #2A8686; --m7: #8A6D3B; --m8: #5B6B7A;
+  --shadow: 0 1px 2px rgb(21 36 42 / .07), 0 6px 18px rgb(21 36 42 / .06);
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Instrument Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 10px;
+  --r-lg: 16px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0C1315; --surface: #131E21; --sunken: #0A1012; --ink: #E3EAE8; --muted: #9AABAE; --faint: #6A7B7F; --line: #24343A;
+    --accent: #E58896; --accent-ink: #2A0B12; --accent-soft: #3A1E26;
+    --rest: #7CC6A2; --rest-soft: #15302A;
+    --ok: #6FCB95; --warn: #E2A858; --bad: #F2877F; --on-bad: #2A0B0B;
+    --m1: #6BA9C9; --m2: #D9A05E; --m3: #A595DB; --m4: #79C298; --m5: #E0899A; --m6: #62C0C0; --m7: #C6A776; --m8: #9AABB9;
+    --shadow: 0 1px 0 rgb(0 0 0 / .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0C1315; --surface: #131E21; --sunken: #0A1012; --ink: #E3EAE8; --muted: #9AABAE; --faint: #6A7B7F; --line: #24343A;
+  --accent: #E58896; --accent-ink: #2A0B12; --accent-soft: #3A1E26;
+  --rest: #7CC6A2; --rest-soft: #15302A;
+  --ok: #6FCB95; --warn: #E2A858; --bad: #F2877F; --on-bad: #2A0B0B;
+  --m1: #6BA9C9; --m2: #D9A05E; --m3: #A595DB; --m4: #79C298; --m5: #E0899A; --m6: #62C0C0; --m7: #C6A776; --m8: #9AABB9;
+  --shadow: 0 1px 0 rgb(0 0 0 / .35);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 15px/1.5 var(--f-body); -webkit-font-smoothing: antialiased;
+  --ring: var(--accent);
+}
+body[data-mode="short"], body[data-mode="long"] { --ring: var(--rest); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+h2 { font-size: 30px; line-height: 1.1; font-weight: 750; }
+h3 { font-size: 15px; font-weight: 650; }
+p { margin: 0; }
+ul { list-style: none; margin: 0; padding: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* en-tête & onglets */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--paper); border-bottom: 1px solid var(--line); }
+.top-in { display: flex; align-items: center; gap: 20px; padding-block: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; flex: none; }
+.brand-mark { width: 36px; height: 36px; border-radius: 10px; background: var(--ink); color: var(--paper); display: grid; place-items: center; }
+.brand-mark svg { width: 22px; height: 22px; }
+.brand strong { display: block; font-family: var(--f-display); font-size: 18px; font-weight: 750; line-height: 1.1; letter-spacing: -.015em; }
+.brand small { display: block; font-size: 11.5px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.tabs { display: flex; gap: 2px; margin-left: auto; }
+.tab { appearance: none; border: 0; background: none; display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 9px; color: var(--muted); font-weight: 600; font-size: 14px; cursor: pointer; }
+.tab svg { width: 18px; height: 18px; flex: none; }
+.tab:hover { color: var(--ink); background: var(--sunken); }
+.tab[aria-current="page"] { color: var(--ink); background: var(--surface); box-shadow: var(--shadow); }
+.sync { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
+.sync[data-s="cloud"]::before { background: var(--ok); }
+.sync[data-s="saving"]::before { background: var(--warn); }
+.sync[data-s="error"]::before { background: var(--bad); }
+
+/* éléments communs */
+.view { padding-block: 26px 48px; display: grid; gap: 20px; }
+.view-head { display: grid; gap: 6px; }
+.view-head p { color: var(--muted); max-width: 64ch; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; min-width: 0; }
+.panel > h3 { margin-bottom: 12px; }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.panel-head h3 { margin: 0; }
+.hint { color: var(--muted); font-size: 13px; }
+.eyebrow { font-size: 11.5px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.btn { appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 9px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; line-height: 1.2; cursor: pointer; transition: background-color .15s, border-color .15s, transform .1s; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.ghost { background: transparent; }
+.btn.sm { padding: 6px 12px; font-size: 13px; }
+.btn.big { padding: 13px 30px; font-size: 16px; min-width: 160px; }
+.btn.armed, .icon-btn.armed { background: var(--bad); border-color: var(--bad); color: var(--on-bad); }
+.icon-btn { appearance: none; border: 1px solid transparent; background: none; color: var(--faint); min-width: 30px; height: 30px; border-radius: 999px; display: inline-grid; place-items: center; cursor: pointer; padding: 0 6px; font-size: 12px; font-weight: 600; flex: none; }
+.icon-btn:hover { color: var(--ink); background: var(--sunken); }
+.icon-btn svg { width: 14px; height: 14px; }
+.link { appearance: none; border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+input, select, textarea { background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; min-width: 0; max-width: 100%; }
+textarea { resize: vertical; min-height: 64px; line-height: 1.45; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.field { display: grid; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; min-width: 0; }
+.field input, .field select, .field textarea { font-size: 14px; font-weight: 400; color: var(--ink); letter-spacing: 0; width: 100%; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--sunken); color: var(--muted); white-space: nowrap; }
+.chip.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.chip.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+.chip.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.chip.ex { background: transparent; border: 1px dashed var(--faint); color: var(--muted); font-weight: 500; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--faint)); display: inline-block; flex: none; }
+.meter { height: 8px; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+.meter > i { display: block; height: 100%; border-radius: inherit; background: var(--accent); width: 0; transition: width .4s ease; }
+.empty { color: var(--muted); font-size: 13.5px; padding: 6px 0; }
+kbd { font-family: var(--f-mono); font-size: 11px; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; opacity: .65; }
+
+/* Focus */
+.focus-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.timer-card { padding: 26px 22px; display: grid; gap: 20px; justify-items: center; text-align: center; }
+.modes { display: inline-flex; flex-wrap: wrap; justify-content: center; background: var(--sunken); border-radius: 999px; padding: 4px; gap: 2px; }
+.modes button { appearance: none; border: 0; background: none; padding: 7px 15px; border-radius: 999px; font-weight: 600; font-size: 13.5px; color: var(--muted); cursor: pointer; }
+.modes button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.dial { position: relative; width: min(300px, 74vw); max-width: 100%; aspect-ratio: 1; }
+.ring { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+.ring circle { fill: none; stroke-width: 9; }
+.ring .ring-bg { stroke: var(--sunken); }
+.ring .ring-fg { stroke: var(--ring); stroke-linecap: round; transition: stroke-dashoffset .35s linear, stroke .3s; }
+.ring .ring-tick { stroke: var(--line); stroke-width: 2; }
+.dial-center { position: absolute; inset: 0; display: grid; place-content: center; gap: 6px; padding: 18%; }
+.clock { font-family: var(--f-mono); font-weight: 300; font-size: clamp(50px, 13vw, 74px); letter-spacing: -.05em; font-variant-numeric: tabular-nums; line-height: 1; }
+.dial-sub { font-size: 13px; color: var(--muted); text-wrap: balance; }
+.cycle { display: flex; gap: 7px; justify-content: center; }
+.cycle i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--faint); }
+.cycle i.on { background: var(--accent); border-color: var(--accent); }
+.session-form { width: 100%; max-width: 560px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 12px; text-align: left; }
+.linked-task { grid-column: 1 / -1; font-size: 13px; color: var(--muted); background: var(--sunken); padding: 8px 12px; border-radius: 9px; }
+.linked-task strong { color: var(--ink); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.tools { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; font-size: 13px; }
+.tools .field { grid-auto-flow: column; align-items: center; gap: 8px; }
+.tools select { padding: 6px 8px; font-size: 13px; }
+.count { font-family: var(--f-mono); font-size: 12px; background: var(--sunken); border-radius: 99px; padding: 0 7px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; font-size: 12.5px; color: var(--muted); }
+.presets button { appearance: none; border: 1px solid var(--line); background: transparent; border-radius: 99px; padding: 3px 10px; font-family: var(--f-mono); font-size: 12px; cursor: pointer; color: var(--muted); }
+.presets button[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
+.capture { width: 100%; max-width: 560px; display: flex; gap: 8px; }
+.capture input { flex: 1; }
+.zen-only { display: none; }
+.rail { display: grid; gap: 16px; }
+.today-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.today-line .big { font-family: var(--f-mono); font-size: 28px; font-weight: 400; letter-spacing: -.03em; }
+.today-line span { color: var(--muted); font-size: 13.5px; }
+.mini-tasks li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.mini-tasks li:first-child { border-top: 0; padding-top: 0; }
+.mini-tasks p { font-size: 14px; overflow-wrap: anywhere; }
+.mini-tasks .meta { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.play { appearance: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--accent); display: grid; place-items: center; cursor: pointer; }
+.play:hover { border-color: var(--accent); }
+.play svg { width: 12px; height: 12px; }
+.thoughts li { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.thoughts li:first-child { border-top: 0; }
+.thoughts li p { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.thoughts .acts { display: flex; gap: 2px; flex: none; }
+
+body.zen .top, body.zen .rail, body.zen .tabs, body.zen .modes, body.zen .presets, body.zen .session-form, body.zen .hide-zen { display: none !important; }
+body.zen .focus-grid { grid-template-columns: 1fr; min-height: calc(100vh - 60px); align-content: center; }
+body.zen .timer-card { border-color: transparent; background: transparent; }
+body.zen .dial { width: min(400px, 80vw); }
+body.zen .zen-only { display: block; }
+.zen-intent { font-family: var(--f-display); font-size: 20px; font-weight: 600; max-width: 34ch; text-wrap: balance; }
+
+/* Planning */
+.deadlines { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 12px; }
+.dl { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.dl-j { font-family: var(--f-mono); font-size: 22px; letter-spacing: -.03em; }
+.dl.soon .dl-j { color: var(--warn); }
+.dl.urgent .dl-j { color: var(--bad); }
+.dl-title { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.dl-meta { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.add-task { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.add-task .grow { flex: 1 1 260px; }
+.add-task .field { flex: 0 1 auto; }
+.add-task .num-in { width: 76px; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.seg button { appearance: none; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.task-list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 0 16px; }
+.task { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.task:first-child { border-top: 0; }
+.task-title { font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; overflow-wrap: anywhere; }
+.task-meta { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; }
+.task-meta > span { display: inline-flex; align-items: center; gap: 5px; }
+.task.done .task-title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--faint); }
+.pips { display: inline-flex; gap: 3px; }
+.pips i { width: 7px; height: 7px; border-radius: 50%; border: 1.3px solid var(--faint); }
+.pips i.on { background: var(--accent); border-color: var(--accent); }
+.check { appearance: none; width: 22px; height: 22px; border-radius: 50%; border: 1.6px solid var(--faint); background: transparent; cursor: pointer; position: relative; padding: 0; flex: none; }
+.check:hover { border-color: var(--ok); }
+.task.done .check { background: var(--ok); border-color: var(--ok); }
+.task.done .check::after, .chap.s-2 .chap-state::after { content: ""; position: absolute; left: 50%; top: 45%; width: 5px; height: 10px; border: solid var(--surface); border-width: 0 2px 2px 0; transform: translate(-50%, -50%) rotate(45deg); }
+.ex-note { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--r); padding: 10px 14px; }
+
+/* Modules */
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .chap-state { cursor: default; width: 14px; height: 14px; }
+.module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 16px; align-items: start; }
+.module { display: grid; gap: 12px; }
+.module-head { display: flex; align-items: center; gap: 8px; }
+.swatch { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--c); border: 0; cursor: pointer; flex: none; padding: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+.module-name { flex: 1; border: 1px solid transparent; background: transparent; font-family: var(--f-display); font-size: 18px; font-weight: 700; letter-spacing: -.01em; padding: 3px 6px; border-radius: 7px; }
+.module-name:hover { border-color: var(--line); }
+.bar3 { display: flex; height: 8px; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+.bar3 i { display: block; height: 100%; }
+.bar3 .b-ok { background: var(--c); }
+.bar3 .b-wip { background: color-mix(in srgb, var(--c) 38%, transparent); }
+.module-stat { font-size: 13px; color: var(--muted); margin-top: -4px; }
+.module-stat strong { color: var(--ink); font-family: var(--f-mono); font-weight: 500; }
+.module-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chapters li { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 14px; }
+.chapters li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.chapters .icon-btn { opacity: .5; }
+.chapters li:hover .icon-btn, .chapters .icon-btn:focus-visible { opacity: 1; }
+.chap-state { appearance: none; width: 18px; height: 18px; border-radius: 50%; border: 1.6px solid var(--faint); background: transparent; flex: none; cursor: pointer; padding: 0; position: relative; }
+.s-1 .chap-state, .chap-state.s-1 { border-color: var(--warn); background: linear-gradient(90deg, var(--warn) 50%, transparent 50%); }
+.s-2 .chap-state, .chap-state.s-2 { border-color: var(--ok); background: var(--ok); }
+.chap-add { display: flex; gap: 8px; }
+.chap-add input { flex: 1; font-size: 14px; padding: 6px 10px; }
+.module-foot { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.add-module { display: flex; gap: 10px; flex-wrap: wrap; }
+.add-module input { flex: 1 1 240px; }
+
+/* Flashcards */
+.review-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.review-bar .due { flex: 1 1 200px; font-size: 14px; color: var(--muted); }
+.review-bar .due strong { color: var(--ink); font-family: var(--f-mono); font-size: 20px; font-weight: 500; margin-right: 4px; }
+.boxes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; display: grid; gap: 2px; }
+.box b { font-family: var(--f-mono); font-size: 24px; font-weight: 400; letter-spacing: -.03em; }
+.box span { font-size: 12px; color: var(--muted); }
+.box .meter { height: 5px; margin-top: 6px; }
+.review { display: grid; gap: 14px; max-width: 720px; width: 100%; margin: 0 auto; }
+.review-meta { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
+.flash { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 30px 26px; min-height: 240px; display: grid; gap: 16px; align-content: center; text-align: center; cursor: pointer; }
+.flash-mod { justify-self: center; }
+.flash-q { font-family: var(--f-display); font-size: clamp(20px, 3.4vw, 26px); font-weight: 650; line-height: 1.25; text-wrap: balance; overflow-wrap: anywhere; }
+.flash-a { border-top: 1px dashed var(--line); padding-top: 16px; font-size: 16px; white-space: pre-line; text-align: left; max-width: 60ch; margin: 0 auto; overflow-wrap: anywhere; }
+.flash-hint { font-size: 12.5px; color: var(--faint); }
+.grades { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.grades .btn { padding: 12px 8px; border-width: 1.5px; }
+.grades .ko { border-color: var(--bad); color: var(--bad); }
+.grades .hard { border-color: var(--warn); color: var(--warn); }
+.grades .ok { border-color: var(--ok); color: var(--ok); }
+.review-done { text-align: center; display: grid; gap: 10px; justify-items: center; padding: 26px; }
+.add-card { display: grid; gap: 10px; }
+.add-card .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.card-list summary { cursor: pointer; font-weight: 650; font-family: var(--f-display); }
+.card-list ul { margin-top: 10px; }
+.card-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.card-row .dot { margin-top: 6px; }
+.card-row .q { font-weight: 600; overflow-wrap: anywhere; }
+.card-row .a { color: var(--muted); font-size: 13px; white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-row .chip { margin-top: 2px; }
+
+/* Pilotage */
+.kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 4px; align-content: start; }
+.kpi .v { font-family: var(--f-mono); font-size: 26px; letter-spacing: -.04em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.kpi .s { font-size: 12.5px; color: var(--muted); }
+.kpi .meter { height: 5px; margin-top: 6px; }
+.chart-wrap, .table-wrap { overflow-x: auto; }
+.chart-wrap svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.chart-wrap text { font-family: var(--f-mono); font-size: 11px; fill: var(--muted); }
+.chart-wrap .grid { stroke: var(--line); stroke-width: 1; }
+.chart-wrap .bar { fill: color-mix(in srgb, var(--accent) 45%, var(--surface)); }
+.chart-wrap .bar.hit { fill: var(--accent); }
+.chart-wrap .goal { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.chart-wrap .goal-l { fill: var(--ink); }
+.chart-wrap .val { fill: var(--ink); font-size: 10.5px; }
+.chart-wrap .today { fill: var(--ink); font-weight: 600; }
+table.budget { width: 100%; border-collapse: collapse; min-width: 560px; font-size: 14px; }
+.budget th { text-align: left; font-size: 11.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.budget td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.budget tr:last-child td { border-bottom: 0; }
+.budget .r { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.budget th.r { font-family: inherit; }
+.budget .mname { display: flex; align-items: center; gap: 8px; }
+.budget tfoot td { font-weight: 650; border-top: 1.5px solid var(--ink); border-bottom: 0; }
+.budget .pos { color: var(--ok); }
+.budget .neg { color: var(--warn); }
+.budget .meter { width: 120px; height: 6px; }
+.budget .meter > i { background: var(--c, var(--accent)); }
+
+/* Réglages */
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.check-row { display: flex; align-items: center; gap: 10px; font-size: 14px; padding: 4px 0; cursor: pointer; }
+.check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+.stack { display: grid; gap: 12px; }
+.row-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+#exportBox { width: 100%; font-family: var(--f-mono); font-size: 12px; min-height: 120px; }
+.status-line { font-size: 13px; color: var(--muted); }
+.status-line.err { color: var(--bad); }
+
+/* toast */
+.toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 16px); background: var(--ink); color: var(--paper); padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 30; max-width: calc(100vw - 32px); text-align: center; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 1000px) {
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .focus-grid { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .top-in { gap: 12px; }
+  .sync { margin-left: auto; }
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; margin: 0; gap: 0;
+    background: var(--surface); border-top: 1px solid var(--line);
+    padding: 6px max(16px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .tab { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px; padding: 6px 0; font-size: 10.5px; border-radius: 8px; }
+  .tab svg { width: 20px; height: 20px; }
+  .tab[aria-current="page"] { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+  main { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+  h2 { font-size: 25px; }
+  .view { padding-block: 20px 32px; }
+}
+@media (max-width: 560px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .session-form, .module-fields, .add-card .row, .form-grid { grid-template-columns: 1fr; }
+  .boxes { gap: 6px; }
+  .box { padding: 10px 8px; }
+  .box b { font-size: 20px; }
+  .task { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .task > .icon-btn { grid-column: 3; grid-row: 1; }
+  .task > .task-go { grid-column: 2; grid-row: 2; justify-self: start; }
+  .brand small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body data-mode="focus">
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.5 17a7.5 7.5 0 1 1 15 0"/><path d="m12 17 3.8-4.6"/><path d="M12 9.5v1.2M7.6 11.4l.8.8M16.4 11.4"/></svg></span>
+      <div><strong>Cockpit MBA</strong><small>Manager de Business Unit</small></div>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <button class="tab" data-view="focus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.8h5"/></svg><span>Focus</span></button>
+      <button class="tab" data-view="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>Planning</span></button>
+      <button class="tab" data-view="modules"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 3.5 8 12 12.5 20.5 8z"/><path d="m3.5 12.2 8.5 4.5 8.5-4.5"/><path d="m3.5 16.2 8.5 4.5 8.5-4.5"/></svg><span>Modules</span></button>
+      <button class="tab" data-view="cards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="3.5" width="13" height="15" rx="2"/><path d="M4.5 7v11.5a2 2 0 0 0 2 2h10"/></svg><span>Cartes</span></button>
+      <button class="tab" data-view="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 20h17M6.5 16.5v-5M11.5 16.5V6.5M16.5 16.5v-8"/></svg><span>Pilotage</span></button>
+      <button class="tab" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/></svg><span>Réglages</span></button>
+    </nav>
+    <span class="sync" id="sync" data-s="local">Sur cet appareil</span>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+
+  <!-- FOCUS -->
+  <section class="view" id="v-focus">
+    <div class="focus-grid">
+      <div class="panel timer-card">
+        <div class="modes" aria-label="Type de session">
+          <button type="button" data-act="mode" data-mode="focus">Focus</button>
+          <button type="button" data-act="mode" data-mode="short">Pause courte</button>
+          <button type="button" data-act="mode" data-mode="long">Pause longue</button>
+        </div>
+        <div class="dial">
+          <svg class="ring" viewBox="0 0 260 260" aria-hidden="true">
+            <circle class="ring-bg" cx="130" cy="130" r="118"/>
+            <circle class="ring-fg" id="ringFg" cx="130" cy="130" r="118"/>
+          </svg>
+          <div class="dial-center">
+            <div class="clock" id="clock" role="timer" aria-live="off">25:00</div>
+            <div class="dial-sub" id="dialSub">Session 1 sur 4</div>
+          </div>
+        </div>
+        <div class="cycle" id="cycleDots" aria-hidden="true"></div>
+        <p class="zen-only zen-intent" id="zenIntent"></p>
+        <div class="session-form">
+          <label class="field">Module<select id="fModule"></select></label>
+          <label class="field">Objectif de cette session<input id="fIntent" autocomplete="off" placeholder="Ex. : refaire le cas BFR sans regarder la correction"></label>
+          <p class="linked-task" id="fTask" hidden></p>
+        </div>
+        <div class="controls">
+          <button type="button" class="btn primary big" id="btnStart" data-act="toggle">Démarrer</button>
+          <button type="button" class="btn" id="btnFinish" data-act="finish">Terminer</button>
+          <button type="button" class="btn ghost hide-zen" data-act="reset">Réinitialiser</button>
+        </div>
+        <div class="tools">
+          <label class="field hide-zen">Ambiance
+            <select id="fAmbient">
+              <option value="off">Silence</option>
+              <option value="brown">Bruit brun</option>
+              <option value="pink">Bruit rose</option>
+              <option value="soft">Souffle doux</option>
+            </select>
+          </label>
+          <button type="button" class="btn ghost sm" data-act="distract" title="Note la pensée qui te distrait, puis reviens au travail">Pensée parasite <span class="count" id="distCount">0</span></button>
+          <button type="button" class="btn ghost sm hide-zen" data-act="zen">Mode immersif</button>
+          <button type="button" class="btn ghost sm zen-only" data-act="zen">Quitter le mode immersif</button>
+        </div>
+        <form class="capture" id="capture" hidden>
+          <input id="captureInput" autocomplete="off" placeholder="Écris-la ici, tu la traiteras après la session" aria-label="Pensée à garer">
+          <button class="btn sm">Garer</button>
+        </form>
+        <div class="presets" aria-label="Rythme focus / pause">
+          <span>Rythme</span>
+          <button type="button" data-act="preset" data-p="25,5,15">25 / 5</button>
+          <button type="button" data-act="preset" data-p="50,10,20">50 / 10</button>
+          <button type="button" data-act="preset" data-p="90,15,30">90 / 15</button>
+        </div>
+      </div>
+
+      <aside class="rail">
+        <div class="panel">
+          <div class="panel-head"><h3>Aujourd’hui</h3><span class="hint" id="todayDate"></span></div>
+          <div class="today-line"><span class="big" id="todayMin">0 min</span><span id="todayGoal">sur 2 h d’objectif</span></div>
+          <div class="meter"><i id="todayBar"></i></div>
+          <p class="hint" id="todaySessions" style="margin-top:8px"></p>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>À attaquer</h3><button type="button" class="link" data-act="go" data-view="plan">Planning</button></div>
+          <ul class="mini-tasks" id="nextTasks"></ul>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Parking à pensées</h3><span class="hint" id="thoughtCount"></span></div>
+          <ul class="thoughts" id="thoughts"></ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- PLANNING -->
+  <section class="view" id="v-plan" hidden>
+    <div class="view-head">
+      <h2>Planning</h2>
+      <p>Découpe tes révisions en tâches estimées en sessions de focus. Les rendus et examens apparaissent dans le compte à rebours.</p>
+    </div>
+    <div class="deadlines" id="deadlines"></div>
+    <form class="panel add-task" id="taskForm">
+      <label class="field grow">Nouvelle tâche<input id="tTitle" required autocomplete="off" placeholder="Ex. : fiche de synthèse Kotter en 8 étapes"></label>
+      <label class="field">Module<select id="tModule"></select></label>
+      <label class="field">Type<select id="tType"><option value="revision">Révision</option><option value="lecture">Lecture</option><option value="rendu">Rendu</option><option value="examen">Examen</option></select></label>
+      <label class="field">Échéance<input type="date" id="tDue"></label>
+      <label class="field">Priorité<select id="tPrio"><option value="1">Haute</option><option value="2" selected>Moyenne</option><option value="3">Basse</option></select></label>
+      <label class="field">Sessions<input type="number" class="num-in" id="tEst" min="1" max="30" value="2"></label>
+      <button class="btn primary">Ajouter</button>
+    </form>
+    <div class="filters">
+      <div class="seg" id="taskFilter">
+        <button type="button" data-act="filter" data-f="open">À faire</button>
+        <button type="button" data-act="filter" data-f="today">Aujourd’hui</button>
+        <button type="button" data-act="filter" data-f="week">7 jours</button>
+        <button type="button" data-act="filter" data-f="done">Terminées</button>
+      </div>
+      <select id="taskMod" aria-label="Filtrer par module"></select>
+    </div>
+    <ul class="task-list" id="taskList"></ul>
+    <div id="exNote"></div>
+  </section>
+
+  <!-- MODULES -->
+  <section class="view" id="v-modules" hidden>
+    <div class="view-head">
+      <h2>Modules</h2>
+      <p>Clique sur le rond d’un chapitre pour changer son état. Fixe une date d’examen et un budget d’heures par semaine : le Pilotage compare ce budget au réalisé.</p>
+      <div class="legend"><span><i class="chap-state"></i>À voir</span><span><i class="chap-state s-1"></i>En cours</span><span><i class="chap-state s-2"></i>Maîtrisé</span></div>
+    </div>
+    <div class="module-grid" id="moduleGrid"></div>
+    <form class="panel add-module" id="moduleForm">
+      <input id="mName" required autocomplete="off" placeholder="Nouveau module — ex. : Supply chain & achats" aria-label="Nom du nouveau module">
+      <button class="btn primary">Ajouter le module</button>
+    </form>
+  </section>
+
+  <!-- FLASHCARDS -->
+  <section class="view" id="v-cards" hidden>
+    <div class="view-head">
+      <h2>Flashcards</h2>
+      <p>Méthode Leitner : une carte sue monte d’une boîte et revient plus tard (1, 2, 4, 8 puis 16 jours). Une carte ratée retourne en boîte 1.</p>
+    </div>
+    <div class="panel review-bar">
+      <select id="cMod" aria-label="Module à réviser"></select>
+      <p class="due" id="dueInfo"></p>
+      <button type="button" class="btn" data-act="review" data-all="1">Tout le module</button>
+      <button type="button" class="btn primary" data-act="review">Réviser les cartes dues</button>
+    </div>
+    <div class="boxes" id="boxes"></div>
+    <div class="review" id="review" hidden>
+      <div class="review-meta"><span id="rvProgress"></span><button type="button" class="btn ghost sm" data-act="endReview">Arrêter</button></div>
+      <div class="flash" id="flash" data-act="flip" tabindex="0" role="button" aria-label="Retourner la carte">
+        <span class="chip flash-mod" id="rvMod"></span>
+        <p class="flash-q" id="rvQ"></p>
+        <div class="flash-a" id="rvA" hidden></div>
+        <p class="flash-hint" id="rvHint">Espace ou clic pour voir la réponse</p>
+      </div>
+      <div class="grades" id="grades" hidden>
+        <button type="button" class="btn grade ko" data-act="grade" data-g="0">Raté <kbd>1</kbd></button>
+        <button type="button" class="btn grade hard" data-act="grade" data-g="1">Hésitant <kbd>2</kbd></button>
+        <button type="button" class="btn grade ok" data-act="grade" data-g="2">Su <kbd>3</kbd></button>
+      </div>
+    </div>
+    <div class="panel review-done" id="reviewDone" hidden></div>
+    <form class="panel add-card" id="cardForm">
+      <h3>Nouvelle carte</h3>
+      <label class="field">Module<select id="cfMod"></select></label>
+      <div class="row">
+        <label class="field">Question<textarea id="cfQ" required placeholder="Ex. : les 4 axes du Balanced Scorecard ?"></textarea></label>
+        <label class="field">Réponse<textarea id="cfA" required placeholder="Financier, clients, processus internes, apprentissage organisationnel."></textarea></label>
+      </div>
+      <div><button class="btn primary">Ajouter la carte</button></div>
+    </form>
+    <details class="panel card-list" id="cardDetails">
+      <summary>Toutes les cartes (<span id="cardCount">0</span>)</summary>
+      <ul id="cardList"></ul>
+    </details>
+  </section>
+
+  <!-- PILOTAGE -->
+  <section class="view" id="v-stats" hidden>
+    <div class="view-head">
+      <h2>Pilotage</h2>
+      <p>Tes révisions suivies comme une business unit : objectifs, réalisé, écarts au budget.</p>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="panel">
+      <div class="panel-head"><h3>Minutes de focus, 14 derniers jours</h3><span class="hint">Pointillés : objectif quotidien</span></div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3 id="budgetTitle">Budget vs réalisé</h3><button type="button" class="link" data-act="go" data-view="modules">Modifier les budgets</button></div>
+      <div class="table-wrap"><table class="budget" id="budget"></table></div>
+    </div>
+  </section>
+
+  <!-- RÉGLAGES -->
+  <section class="view" id="v-settings" hidden>
+    <div class="view-head"><h2>Réglages</h2></div>
+    <div class="settings-grid">
+      <div class="panel stack">
+        <h3>Rythme de travail</h3>
+        <div class="form-grid">
+          <label class="field">Focus (min)<input type="number" id="sFocus" min="5" max="180" data-set="focus"></label>
+          <label class="field">Pause courte (min)<input type="number" id="sShort" min="1" max="60" data-set="short"></label>
+          <label class="field">Pause longue (min)<input type="number" id="sLong" min="1" max="90" data-set="long"></label>
+          <label class="field">Pause longue toutes les<input type="number" id="sEvery" min="2" max="10" data-set="longEvery"></label>
+          <label class="field">Objectif quotidien (min)<input type="number" id="sGoal" min="15" max="720" step="5" data-set="dailyGoal"></label>
+        </div>
+        <label class="check-row"><input type="checkbox" id="sAuto" data-set="autoBreak">Lancer la pause automatiquement après un focus</label>
+      </div>
+      <div class="panel stack">
+        <h3>Sons</h3>
+        <label class="check-row"><input type="checkbox" id="sChime" data-set="chime">Carillon en fin de session</label>
+        <label class="field">Volume<input type="range" id="sVol" min="0" max="1" step="0.05" data-set="volume"></label>
+        <div class="row-btns"><button type="button" class="btn sm" data-act="testSound">Tester le son</button></div>
+      </div>
+      <div class="panel stack">
+        <h3>Sauvegarde</h3>
+        <p class="status-line" id="storageInfo"></p>
+        <div class="row-btns">
+          <button type="button" class="btn sm" data-act="download" id="btnDownload" hidden>Télécharger (.json)</button>
+          <button type="button" class="btn sm" data-act="copy">Copier les données</button>
+        </div>
+        <textarea id="exportBox" readonly hidden aria-label="Données exportées"></textarea>
+        <label class="field">Restaurer depuis un fichier<input type="file" id="importFile" accept=".json,application/json"></label>
+        <label class="field">…ou colle une sauvegarde<textarea id="importText" placeholder='{"app":"cockpit-mba", …}'></textarea></label>
+        <div class="row-btns"><button type="button" class="btn sm" data-act="import">Restaurer</button></div>
+        <p class="status-line" id="importStatus" role="status"></p>
+      </div>
+      <div class="panel stack">
+        <h3>Remise à zéro</h3>
+        <p class="hint">Les exemples (tâches marquées « Exemple ») peuvent être retirés sans toucher au reste.</p>
+        <div class="row-btns">
+          <button type="button" class="btn sm" data-act="clearExamples">Retirer les exemples</button>
+          <button type="button" class="btn sm" data-act="resetAll">Tout réinitialiser</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- utilitaires ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ESC[c]);
+const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+const pad = n => String(n).padStart(2, '0');
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseD = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (k, n) => { const d = parseD(k); d.setDate(d.getDate() + n); return dkey(d); };
+const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 864e5);
+const today = () => dkey();
+const weekStart = (k = today()) => addDays(k, -((parseD(k).getDay() + 6) % 7));
+const fmtDate = k => parseD(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+const fmtMin = m => { const t = Math.round(m); if (t < 60) return `${t} min`; const h = Math.floor(t / 60), r = t % 60; return r ? `${h} h ${pad(r)}` : `${h} h`; };
+const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+const X = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l8 8M11 3l-8 8"/></svg>';
+const PLAY = '<svg viewBox="0 0 12 12" fill="currentColor"><path d="M3 1.5v9l7.5-4.5z"/></svg>';
+
+/* ---------- données par défaut ---------- */
+const DEFAULT_SETTINGS = { focus: 25, short: 5, long: 15, longEvery: 4, dailyGoal: 120, autoBreak: true, chime: true, volume: 0.6, ambient: 'off' };
+const MODULES0 = [
+  ['Stratégie & diagnostic', 3, ['PESTEL', '5 forces de Porter', 'SWOT', 'Matrices BCG & McKinsey', 'Chaîne de valeur', 'Stratégies génériques & Ansoff']],
+  ['Finance & contrôle de gestion', 3, ['Bilan & compte de résultat', 'SIG & EBE', 'BFR & trésorerie', 'Seuil de rentabilité', 'Budgets & analyse des écarts', 'ROI, VAN & TRI']],
+  ['Marketing stratégique', 2, ['Segmentation, ciblage, positionnement', 'Mix marketing 4P / 7P', 'Parcours & expérience client', 'Pricing', 'Marketing digital & data']],
+  ['Management & leadership', 2, ['Styles de management', 'Motivation : Maslow, Herzberg', 'Conduite du changement', 'Gestion des conflits', 'Délégation & feedback']],
+  ['Développement commercial', 2, ['Plan d’action commercial', 'Méthode SONCAS', 'Négociation raisonnée', 'Gestion grands comptes', 'Animation de l’équipe commerciale']],
+  ['Pilotage de la performance', 2, ['KPI & tableaux de bord', 'Objectifs SMART & OKR', 'Balanced Scorecard', 'Lean & amélioration continue']],
+  ['Gestion de projet', 1, ['Note de cadrage', 'WBS, Gantt & chemin critique', 'Agile & Scrum', 'Matrice RACI & risques']],
+  ['RH, droit & RSE', 1, ['Droit du travail essentiel', 'Recrutement & GPEC', 'Droit des contrats', 'RSE & reporting extra-financier']],
+];
+const CARDS0 = [
+  ['m1', 'PESTEL : quelles sont les 6 dimensions analysées ?', 'Politique, Économique, Socioculturel, Technologique, Écologique, Légal.\nOutil d’analyse du macro-environnement.'],
+  ['m1', 'Les 5 forces de Porter ?', '1. Rivalité entre concurrents\n2. Menace des nouveaux entrants\n3. Menace des produits de substitution\n4. Pouvoir de négociation des clients\n5. Pouvoir de négociation des fournisseurs\n(+ parfois l’État comme 6e force)'],
+  ['m1', 'Matrice BCG : axes et 4 quadrants ?', 'Axes : croissance du marché × part de marché relative.\nVedettes (croissance forte, PDM forte) · Vaches à lait (croissance faible, PDM forte) · Dilemmes (croissance forte, PDM faible) · Poids morts (croissance faible, PDM faible).'],
+  ['m1', 'SWOT : qu’est-ce qui est interne, qu’est-ce qui est externe ?', 'Interne : Forces, Faiblesses.\nExterne : Opportunités, Menaces.\nLe croisement des deux donne les options stratégiques (matrice TOWS).'],
+  ['m1', 'Les 3 stratégies génériques de Porter ?', 'Domination par les coûts, différenciation, focalisation (sur un segment, par les coûts ou par la différenciation).'],
+  ['m1', 'Matrice d’Ansoff : les 4 options de croissance ?', 'Pénétration de marché (produit actuel, marché actuel) · Développement de produits · Développement de marchés · Diversification (nouveau produit, nouveau marché).'],
+  ['m2', 'Formule du BFR d’exploitation ?', 'BFR = Stocks + Créances clients − Dettes fournisseurs (et autres dettes d’exploitation).\nC’est le besoin de financement créé par le cycle d’exploitation.'],
+  ['m2', 'Relation entre FRNG, BFR et trésorerie nette ?', 'Trésorerie nette = FRNG − BFR.'],
+  ['m2', 'Comment calcule-t-on l’EBE ?', 'EBE = Valeur ajoutée + subventions d’exploitation − impôts et taxes − charges de personnel.\nPerformance opérationnelle avant amortissements et politique financière (proche de l’EBITDA).'],
+  ['m2', 'Seuil de rentabilité : formule ?', 'SR = Charges fixes ÷ taux de marge sur coût variable.\nTaux de MCV = (CA − charges variables) ÷ CA.'],
+  ['m2', 'VAN : définition et règle de décision ?', 'Somme des flux de trésorerie futurs actualisés − investissement initial.\nVAN > 0 : le projet crée de la valeur au taux d’actualisation retenu.'],
+  ['m2', 'Formule du ROI ?', 'ROI = (Gain de l’investissement − Coût de l’investissement) ÷ Coût de l’investissement.'],
+  ['m3', 'Que signifie la démarche STP ?', 'Segmentation (découper le marché) → Targeting / ciblage (choisir les segments) → Positionnement (place visée dans l’esprit du client cible).'],
+  ['m3', 'Les 4P du mix marketing ? Et les 3P ajoutés pour les services ?', 'Produit, Prix, Place (distribution), Promotion (communication).\nServices (7P) : + Personnel, Processus, Preuve physique.'],
+  ['m3', 'Comment calcule-t-on le NPS ?', 'NPS = % de promoteurs (notes 9-10) − % de détracteurs (notes 0-6) à la question « Recommanderiez-vous… ? ». Va de −100 à +100.'],
+  ['m4', 'Herzberg : facteurs d’hygiène vs facteurs moteurs ?', 'Hygiène (salaire, conditions de travail, sécurité…) : leur absence crée l’insatisfaction, leur présence ne motive pas.\nMoteurs (reconnaissance, responsabilités, accomplissement…) : créent la satisfaction et la motivation.'],
+  ['m4', 'Les 8 étapes du changement selon Kotter ?', '1. Créer un sentiment d’urgence\n2. Former une coalition\n3. Développer une vision\n4. Communiquer la vision\n5. Lever les obstacles\n6. Obtenir des victoires rapides\n7. Consolider les acquis\n8. Ancrer le changement dans la culture'],
+  ['m4', 'Leadership situationnel (Hersey & Blanchard) : les 4 styles ?', 'Directif, persuasif, participatif, délégatif, choisis selon l’autonomie du collaborateur (compétence × motivation).'],
+  ['m5', 'Que signifie SONCAS ?', 'Sécurité, Orgueil, Nouveauté, Confort, Argent, Sympathie : les 6 leviers de motivation d’achat (SONCASE avec Environnement).'],
+  ['m5', 'Les 4 principes de la négociation raisonnée (Harvard) ?', '1. Traiter séparément les personnes et le problème\n2. Se concentrer sur les intérêts, pas sur les positions\n3. Imaginer des options à bénéfice mutuel\n4. Exiger des critères objectifs'],
+  ['m5', 'BATNA / MESORE ?', 'Best Alternative To a Negotiated Agreement, ou Meilleure Solution de Rechange : ce que tu fais si l’accord échoue. Elle fixe ton seuil de rupture.'],
+  ['m6', 'Objectif SMART ?', 'Spécifique, Mesurable, Atteignable, Réaliste, Temporellement défini.'],
+  ['m6', 'Qu’est-ce qu’un OKR ?', 'Objectives & Key Results : un objectif qualitatif ambitieux + 3 à 5 résultats clés mesurables, sur un cycle court (souvent trimestriel).'],
+  ['m6', 'Les 4 axes du Balanced Scorecard (Kaplan & Norton) ?', 'Financier, Clients, Processus internes, Apprentissage organisationnel.'],
+  ['m7', 'Matrice RACI : que signifient les 4 lettres ?', 'Responsible (réalise), Accountable (valide et rend des comptes, un seul), Consulted (consulté avant), Informed (informé après).'],
+  ['m7', 'Qu’est-ce que le chemin critique ?', 'La suite de tâches dont la marge totale est nulle : tout retard sur l’une d’elles retarde la fin du projet.'],
+  ['m8', 'Les 3 piliers du développement durable repris par la RSE ?', 'Environnemental, social, économique (planet, people, profit).'],
+];
+
+function defaults() {
+  const t = today();
+  return {
+    settings: { ...DEFAULT_SETTINGS },
+    modules: MODULES0.map(([name, budget, chs], i) => ({
+      id: 'm' + (i + 1), name, color: i + 1, exam: '', budget,
+      chapters: chs.map((c, j) => ({ id: `c${i + 1}-${j + 1}`, name: c, s: 0 })),
+    })),
+    tasks: [
+      { id: 'tx1', title: 'Fiche de synthèse : 5 forces de Porter', moduleId: 'm1', type: 'revision', due: addDays(t, 1), prio: 2, est: 2, poms: 0, done: false, ex: true },
+      { id: 'tx2', title: 'Cas pratique BFR & trésorerie', moduleId: 'm2', type: 'revision', due: addDays(t, 3), prio: 1, est: 3, poms: 0, done: false, ex: true },
+      { id: 'tx3', title: 'Rendu : diagnostic stratégique de la BU', moduleId: 'm1', type: 'rendu', due: addDays(t, 12), prio: 1, est: 6, poms: 0, done: false, ex: true },
+    ],
+    cards: CARDS0.map(([m, q, a], i) => ({ id: 'k' + (i + 1), moduleId: m, q, a, box: 1, due: t })),
+    sessions: [],
+    thoughts: [],
+  };
+}
+
+/* ---------- stockage : navigateur + compte Claude quand disponible ---------- */
+const KEYS = ['settings', 'modules', 'tasks', 'cards', 'sessions', 'thoughts'];
+const LS = 'cockpit-mba:';
+const lsGet = k => { try { const v = localStorage.getItem(LS + k); return v ? JSON.parse(v) : null; } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(LS + k, JSON.stringify(v)); } catch { /* stockage indisponible */ } };
+
+const S = defaults();
+for (const k of KEYS) {
+  const v = lsGet(k);
+  if (v == null) continue;
+  S[k] = k === 'settings' ? { ...DEFAULT_SETTINGS, ...v } : v;
+}
+
+const Cloud = { db: null, uid: null, pending: new Set(), dirtyEarly: new Set(), timer: 0, busy: false, pushAll: false };
+
+function save(...keys) {
+  for (const k of keys) {
+    lsSet(k, S[k]);
+    if (Cloud.db) Cloud.pending.add(k); else Cloud.dirtyEarly.add(k);
+  }
+  if (Cloud.db) { clearTimeout(Cloud.timer); Cloud.timer = setTimeout(flush, 900); }
+}
+async function flush() {
+  if (!Cloud.db) return;
+  if (Cloud.busy) { clearTimeout(Cloud.timer); Cloud.timer = setTimeout(flush, 600); return; }
+  if (Cloud.pushAll) { KEYS.forEach(k => Cloud.pending.add(k)); Cloud.pushAll = false; }
+  const keys = [...Cloud.pending];
+  Cloud.pending.clear();
+  if (!keys.length) return;
+  Cloud.busy = true;
+  setSync('saving');
+  try {
+    for (const k of keys) await Cloud.db.doc(`data/users/${Cloud.uid}/${k}`).set({ v: S[k], at: Date.now() });
+    setSync('cloud');
+  } catch (e) {
+    console.warn('Synchronisation impossible', e);
+    if (e && e.code === 'invalid_argument') { Cloud.db = null; setSync('local'); }
+    else { keys.forEach(k => Cloud.pending.add(k)); setSync('error'); }
+  } finally { Cloud.busy = false; }
+}
+async function initCloud() {
+  if (!window.claude || typeof window.claude.use !== 'function') return;
+  try {
+    const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+    if (!db || !user) return;
+    const id = await user.id();
+    if (!id) return;
+    const snaps = await Promise.all(KEYS.map(k => db.doc(`data/users/${id}/${k}`).get()));
+    let found = false;
+    snaps.forEach((snap, i) => {
+      const k = KEYS[i];
+      const d = snap.exists ? snap.data() : null;
+      if (!d || !('v' in d)) return;
+      found = true;
+      if (Cloud.dirtyEarly.has(k)) return;
+      S[k] = k === 'settings' ? { ...DEFAULT_SETTINGS, ...d.v } : d.v;
+      lsSet(k, S[k]);
+    });
+    Cloud.db = db; Cloud.uid = id;
+    if (!found) Cloud.pushAll = true;
+    Cloud.dirtyEarly.forEach(k => Cloud.pending.add(k));
+    setSync('cloud');
+    if (Cloud.pending.size) flush();
+    renderAll();
+  } catch (e) { console.warn('Stockage du compte indisponible', e); }
+}
+function setSync(s) {
+  const el = $('#sync');
+  el.dataset.s = s;
+  el.textContent = { local: 'Sur cet appareil', cloud: 'Synchronisé', saving: 'Enregistrement…', error: 'Non synchronisé' }[s];
+  el.title = s === 'local' ? 'Données enregistrées dans ce navigateur' : 'Données enregistrées sur ton compte Claude';
+  const info = $('#storageInfo');
+  if (info) info.textContent = s === 'local'
+    ? 'Tes données sont enregistrées dans ce navigateur. Exporte une sauvegarde de temps en temps pour ne rien perdre.'
+    : 'Tes données sont enregistrées sur ton compte et te suivent d’un appareil à l’autre. Elles restent privées.';
+}
+
+/* ---------- aides modèle ---------- */
+const modById = id => S.modules.find(m => m.id === id);
+const modName = id => modById(id)?.name || 'Sans module';
+const modColor = id => { const m = modById(id); return m ? `var(--m${m.color})` : 'var(--faint)'; };
+const sessDay = s => dkey(new Date(s.t));
+function dayTotals() { const m = {}; for (const s of S.sessions) { const k = sessDay(s); m[k] = (m[k] || 0) + s.m; } return m; }
+function minutesByModule(since) { const m = {}; for (const s of S.sessions) { if (since && sessDay(s) < since) continue; m[s.mod] = (m[s.mod] || 0) + s.m; } return m; }
+function fillModules(sel, { all, none } = {}) {
+  const v = sel.value;
+  sel.innerHTML = (all ? `<option value="">${esc(all)}</option>` : '')
+    + S.modules.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')
+    + (none ? `<option value="">${esc(none)}</option>` : '');
+  if (Array.from(sel.options).some(o => o.value === v)) sel.value = v;
+}
+function dueLabel(due) {
+  if (!due) return { txt: 'Sans échéance', cls: '' };
+  const j = daysBetween(today(), due);
+  if (j < 0) return { txt: `En retard · ${fmtDate(due)}`, cls: 'bad' };
+  if (j === 0) return { txt: 'Aujourd’hui', cls: 'warn' };
+  if (j === 1) return { txt: 'Demain', cls: '' };
+  if (j < 7) return { txt: parseD(due).toLocaleDateString('fr-FR', { weekday: 'long' }), cls: '' };
+  return { txt: fmtDate(due), cls: '' };
+}
+const TYPE = { revision: 'Révision', lecture: 'Lecture', rendu: 'Rendu', examen: 'Examen' };
+const STATE = ['à voir', 'en cours', 'maîtrisé'];
+function sortTasks(list) {
+  return list.slice().sort((a, b) => (a.done - b.done) || ((a.due || '9999') .localeCompare(b.due || '9999')) || (a.prio - b.prio));
+}
+
+/* ---------- minuteur ---------- */
+const MODE_LABEL = { focus: 'Focus', short: 'Pause courte', long: 'Pause longue' };
+const durOf = mode => S.settings[mode] * 60000;
+const T = Object.assign({
+  mode: 'focus', running: false, endAt: 0, duration: durOf('focus'), remaining: durOf('focus'),
+  sessionStart: 0, moduleId: S.modules[0]?.id || '', taskId: '', intention: '', cycle: 0, distractions: 0,
+}, lsGet('timer') || {});
+if (!MODE_LABEL[T.mode] || !(T.duration > 0)) { T.mode = 'focus'; T.duration = T.remaining = durOf('focus'); T.running = false; }
+const saveTimer = () => lsSet('timer', T);
+const remainingNow = () => T.running ? Math.max(0, T.endAt - Date.now()) : T.remaining;
+
+let AC = null, ambient = null, scheduled = null, wakeLock = null;
+function audio() {
+  if (!AC) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { AC = new C(); } catch { return null; } }
+  if (AC.state === 'suspended') AC.resume().catch(() => {});
+  return AC;
+}
+function chimeAt(delay) {
+  const a = audio();
+  if (!a) return null;
+  const vol = Math.max(0.0002, 0.28 * S.settings.volume);
+  const t0 = a.currentTime + Math.max(0, delay);
+  const bus = a.createGain();
+  bus.connect(a.destination);
+  [[523.25, 0], [659.25, 0.16], [783.99, 0.32], [1046.5, 0.5]].forEach(([f, dt]) => {
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t0 + dt);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + dt + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 1.6);
+    o.connect(g).connect(bus);
+    o.start(t0 + dt); o.stop(t0 + dt + 1.7);
+  });
+  return bus;
+}
+function cancelChime() { if (scheduled) { try { scheduled.disconnect(); } catch { /* déjà coupé */ } scheduled = null; } }
+function noiseBuffer(a, type) {
+  const len = a.sampleRate * 6, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  let last = 0, b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    if (type === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; }
+    else {
+      b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+      b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+      d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.1; b6 = w * 0.115926;
+    }
+  }
+  const drift = d[len - 1] - d[0];
+  for (let i = 0; i < len; i++) d[i] -= drift * i / (len - 1);
+  return buf;
+}
+function startAmbient() {
+  const type = S.settings.ambient;
+  if (type === 'off' || ambient) return;
+  const a = audio();
+  if (!a) return;
+  const src = a.createBufferSource();
+  src.buffer = noiseBuffer(a, type);
+  src.loop = true;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0, a.currentTime);
+  g.gain.linearRampToValueAtTime(0.35 * S.settings.volume, a.currentTime + 1.5);
+  let node = src;
+  if (type === 'soft') { const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700; src.connect(f); node = f; }
+  node.connect(g).connect(a.destination);
+  src.start();
+  ambient = { src, g };
+}
+function stopAmbient() {
+  if (!ambient || !AC) return;
+  const { src, g } = ambient, t = AC.currentTime;
+  ambient = null;
+  g.gain.cancelScheduledValues(t);
+  g.gain.setValueAtTime(g.gain.value, t);
+  g.gain.linearRampToValueAtTime(0, t + 0.6);
+  try { src.stop(t + 0.7); } catch { /* déjà arrêté */ }
+}
+async function wakeOn() {
+  try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch { wakeLock = null; }
+}
+function wakeOff() { try { wakeLock?.release(); } catch { /* rien */ } wakeLock = null; }
+
+function setMode(mode) {
+  T.mode = mode; T.running = false;
+  T.duration = T.remaining = durOf(mode);
+  if (mode === 'focus') { T.distractions = 0; T.sessionStart = 0; }
+  cancelChime(); stopAmbient(); wakeOff();
+  saveTimer(); renderFocus();
+}
+function start() {
+  T.running = true;
+  T.endAt = Date.now() + T.remaining;
+  if (T.mode === 'focus' && !T.sessionStart) T.sessionStart = Date.now();
+  cancelChime();
+  const a = S.settings.chime ? audio() : null;
+  if (a && a.state === 'running') scheduled = chimeAt(T.remaining / 1000);
+  else if (a) a.resume().then(() => { if (T.running && !scheduled) scheduled = chimeAt(remainingNow() / 1000); }).catch(() => {});
+  if (T.mode === 'focus') startAmbient();
+  wakeOn();
+  saveTimer(); renderFocus();
+}
+function pause() {
+  T.remaining = remainingNow(); T.running = false;
+  cancelChime(); stopAmbient(); wakeOff();
+  saveTimer(); renderFocus();
+}
+function logSession(min) {
+  min = Math.round(min);
+  if (min < 1) return;
+  S.sessions.push({ t: T.sessionStart || Date.now() - min * 60000, m: min, mod: T.moduleId, task: T.taskId || null, d: T.distractions });
+  const task = S.tasks.find(t => t.id === T.taskId);
+  if (task) task.poms = (task.poms || 0) + 1;
+  save('sessions', 'tasks');
+  toast(`+${fmtMin(min)} sur ${modName(T.moduleId)}`);
+}
+function nextBreak() { T.cycle++; return T.cycle % S.settings.longEvery === 0 ? 'long' : 'short'; }
+function complete() {
+  const chimed = !!scheduled;
+  scheduled = null;
+  if (T.mode === 'focus') {
+    logSession(T.duration / 60000);
+    setMode(nextBreak());
+    if (!chimed && S.settings.chime) chimeAt(0);
+    if (S.settings.autoBreak) start();
+  } else {
+    setMode('focus');
+    if (!chimed && S.settings.chime) chimeAt(0);
+    toast('Pause terminée. On s’y remet ?');
+  }
+  renderAll();
+}
+function finishNow() {
+  if (T.mode !== 'focus') { setMode('focus'); return; }
+  const elapsed = T.duration - remainingNow();
+  if (elapsed < 60000) { toast('Moins d’une minute : rien n’a été enregistré.'); setMode('focus'); return; }
+  logSession(elapsed / 60000);
+  setMode(nextBreak());
+  renderAll();
+}
+function tick() {
+  if (!T.running) return;
+  if (Date.now() >= T.endAt) complete(); else renderTick();
+}
+
+/* ---------- rendu : Focus ---------- */
+const CIRC = 2 * Math.PI * 118;
+$('#ringFg').style.strokeDasharray = CIRC.toFixed(2);
+function renderTick() {
+  const rem = remainingNow();
+  const s = Math.ceil(rem / 1000);
+  const txt = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  $('#clock').textContent = txt;
+  $('#ringFg').style.strokeDashoffset = (CIRC * (1 - rem / T.duration)).toFixed(2);
+  document.title = T.running ? `${txt} · ${MODE_LABEL[T.mode]}` : 'Cockpit MBA';
+}
+function renderFocus() {
+  document.body.dataset.mode = T.mode;
+  $$('.modes button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === T.mode)));
+  const sel = $('#fModule');
+  fillModules(sel, { none: 'Sans module' });
+  sel.value = T.moduleId;
+  if (sel.value !== T.moduleId) { T.moduleId = sel.value; saveTimer(); }
+  if (document.activeElement !== $('#fIntent')) $('#fIntent').value = T.intention;
+  const task = S.tasks.find(t => t.id === T.taskId);
+  $('#fTask').hidden = !task;
+  if (task) $('#fTask').innerHTML = `Tâche liée : <strong>${esc(task.title)}</strong> · ${task.poms || 0}/${task.est} sessions · <button type="button" class="link" data-act="unlink">Délier</button>`;
+  $('#btnStart').textContent = T.running ? 'Pause' : (T.remaining < T.duration ? 'Reprendre' : 'Démarrer');
+  $('#btnFinish').textContent = T.mode === 'focus' ? 'Terminer' : 'Passer la pause';
+  $('#distCount').textContent = T.distractions;
+  $('#fAmbient').value = S.settings.ambient;
+  const every = S.settings.longEvery;
+  const filled = T.mode === 'long' ? every : T.cycle % every;
+  $('#cycleDots').innerHTML = Array.from({ length: every }, (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`).join('');
+  $('#dialSub').textContent = T.mode === 'focus' ? `Session ${(T.cycle % every) + 1} sur ${every}`
+    : T.mode === 'short' ? 'Lève-toi, bois un verre d’eau' : 'Sors marcher, laisse décanter';
+  $('#zenIntent').textContent = T.mode === 'focus' ? (T.intention || modName(T.moduleId)) : MODE_LABEL[T.mode];
+  const p = `${S.settings.focus},${S.settings.short},${S.settings.long}`;
+  $$('.presets button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.p === p)));
+  renderTick();
+  renderToday();
+  renderNextTasks();
+  renderThoughts();
+}
+function renderToday() {
+  const t = today();
+  const todays = S.sessions.filter(s => sessDay(s) === t);
+  const min = todays.reduce((a, s) => a + s.m, 0);
+  const goal = S.settings.dailyGoal;
+  $('#todayDate').textContent = parseD(t).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('#todayMin').textContent = fmtMin(min);
+  $('#todayGoal').textContent = `sur ${fmtMin(goal)} d’objectif`;
+  $('#todayBar').style.width = `${clamp(min / goal * 100, 0, 100)}%`;
+  const d = todays.reduce((a, s) => a + (s.d || 0), 0);
+  $('#todaySessions').textContent = todays.length
+    ? `${plural(todays.length, 'session', 'sessions')} · ${plural(d, 'pensée parasite', 'pensées parasites')}${min >= goal ? ' · objectif atteint' : ''}`
+    : 'Aucune session pour l’instant. Choisis un module et lance le minuteur.';
+}
+function renderNextTasks() {
+  const list = sortTasks(S.tasks.filter(t => !t.done)).slice(0, 4);
+  $('#nextTasks').innerHTML = list.length ? list.map(t => {
+    const due = dueLabel(t.due);
+    return `<li><button type="button" class="play" data-act="taskFocus" data-id="${esc(t.id)}" aria-label="Lancer un focus sur ${esc(t.title)}">${PLAY}</button>
+      <div><p>${esc(t.title)}</p><p class="meta"><span class="dot" style="--c:${modColor(t.moduleId)}"></span>${esc(modName(t.moduleId))} · <span class="${due.cls ? 'chip ' + due.cls : ''}">${esc(due.txt)}</span></p></div></li>`;
+  }).join('') : '<li class="empty">Rien de prévu. Ajoute des tâches dans le Planning.</li>';
+}
+function renderThoughts() {
+  $('#thoughtCount').textContent = S.thoughts.length ? plural(S.thoughts.length, 'note', 'notes') : '';
+  $('#thoughts').innerHTML = S.thoughts.length ? S.thoughts.map(th => `<li><p>${esc(th.text)}</p><span class="acts">
+      <button type="button" class="icon-btn" data-act="thoughtTask" data-id="${esc(th.id)}" title="Transformer en tâche">+ tâche</button>
+      <button type="button" class="icon-btn" data-act="thoughtDone" data-id="${esc(th.id)}" aria-label="Supprimer la note">${X}</button></span></li>`).join('')
+    : '<li class="empty">Une idée, un mail à envoyer, une course ? Clique sur « Pensée parasite » pendant le focus pour la noter ici sans perdre le fil.</li>';
+}
+
+/* ---------- rendu : Planning ---------- */
+let taskFilter = 'open';
+try { taskFilter = localStorage.getItem(LS + 'filter') || 'open'; } catch { /* rien */ }
+function renderPlan() {
+  fillModules($('#tModule'), { none: 'Sans module' });
+  fillModules($('#taskMod'), { all: 'Tous les modules' });
+  const t = today();
+  const items = [];
+  S.modules.forEach(m => { if (m.exam && m.exam >= t) items.push({ kind: 'Examen', title: m.name, date: m.exam, c: `var(--m${m.color})` }); });
+  S.tasks.forEach(k => { if (!k.done && k.due && (k.type === 'rendu' || k.type === 'examen')) items.push({ kind: TYPE[k.type], title: k.title, date: k.due, c: modColor(k.moduleId) }); });
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  $('#deadlines').innerHTML = items.length ? items.slice(0, 8).map(it => {
+    const j = daysBetween(t, it.date);
+    const cls = j <= 3 ? 'urgent' : j <= 10 ? 'soon' : '';
+    return `<div class="dl ${cls}"><span class="dl-j">${j < 0 ? 'En retard' : j === 0 ? 'Jour J' : 'J-' + j}</span><p class="dl-title">${esc(it.title)}</p><p class="dl-meta"><span class="dot" style="--c:${it.c}"></span>${it.kind} · ${fmtDate(it.date)}</p></div>`;
+  }).join('') : '<p class="empty">Aucune échéance. Ajoute une date d’examen dans Modules, ou une tâche de type Rendu ou Examen.</p>';
+  $$('#taskFilter button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.f === taskFilter)));
+  renderTaskList();
+}
+function renderTaskList() {
+  const t = today(), mod = $('#taskMod').value;
+  let list = S.tasks.filter(k => !mod || k.moduleId === mod);
+  if (taskFilter === 'done') list = list.filter(k => k.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+  else {
+    list = list.filter(k => !k.done);
+    if (taskFilter === 'today') list = list.filter(k => k.due && k.due <= t);
+    if (taskFilter === 'week') list = list.filter(k => k.due && k.due <= addDays(t, 7));
+    list = sortTasks(list);
+  }
+  const msg = { open: 'Aucune tâche en cours. Ajoute la première ci-dessus.', today: 'Rien pour aujourd’hui.', week: 'Rien de prévu dans les 7 prochains jours.', done: 'Aucune tâche terminée pour l’instant.' }[taskFilter];
+  $('#taskList').innerHTML = list.length ? list.map(k => {
+    const due = dueLabel(k.due);
+    const est = clamp(k.est || 1, 1, 30), poms = k.poms || 0;
+    const pips = est <= 8 ? `<span class="pips" aria-hidden="true">${Array.from({ length: est }, (_, i) => `<i class="${i < poms ? 'on' : ''}"></i>`).join('')}</span>` : '';
+    return `<li class="task ${k.done ? 'done' : ''}">
+      <button type="button" class="check" data-act="taskDone" data-id="${esc(k.id)}" aria-label="${k.done ? 'Rouvrir' : 'Marquer comme faite'} : ${esc(k.title)}"></button>
+      <div><p class="task-title">${esc(k.title)}${k.ex ? '<span class="chip ex">Exemple</span>' : ''}${k.prio === 1 && !k.done ? '<span class="chip bad">Priorité haute</span>' : ''}</p>
+        <p class="task-meta"><span><span class="dot" style="--c:${modColor(k.moduleId)}"></span>${esc(modName(k.moduleId))}</span><span>${TYPE[k.type] || 'Révision'}</span><span class="${due.cls ? 'chip ' + due.cls : ''}">${esc(due.txt)}</span><span>${pips}${poms}/${est} sessions</span></p></div>
+      ${k.done ? '<span class="task-go"></span>' : `<button type="button" class="btn sm task-go" data-act="taskFocus" data-id="${esc(k.id)}">${PLAY} Focus</button>`}
+      <button type="button" class="icon-btn" data-act="taskDel" data-id="${esc(k.id)}" aria-label="Supprimer ${esc(k.title)}">${X}</button>
+    </li>`;
+  }).join('') : `<li class="task"><span></span><p class="empty">${msg}</p></li>`;
+  const ex = S.tasks.some(k => k.ex);
+  $('#exNote').innerHTML = ex ? '<div class="ex-note"><span>Les tâches marquées « Exemple » montrent le fonctionnement. Remplace-les par les tiennes.</span><button type="button" class="btn sm" data-act="clearExamples">Retirer les exemples</button></div>' : '';
+}
+
+/* ---------- rendu : Modules ---------- */
+function moduleFoot(m, mins, cardsBy) {
+  let exam = '';
+  if (m.exam) {
+    const j = daysBetween(today(), m.exam);
+    exam = j < 0 ? '<span class="chip">Examen passé</span>' : `<span class="chip ${j <= 7 ? 'bad' : j <= 21 ? 'warn' : ''}">Examen ${j === 0 ? 'aujourd’hui' : 'J-' + j}</span>`;
+  }
+  return `<span>${fmtMin(mins[m.id] || 0)} de focus</span><span>${plural(cardsBy[m.id] || 0, 'carte', 'cartes')}</span>${exam}`;
+}
+function renderModules() {
+  const mins = minutesByModule();
+  const cardsBy = {};
+  S.cards.forEach(c => { cardsBy[c.moduleId] = (cardsBy[c.moduleId] || 0) + 1; });
+  $('#moduleGrid').innerHTML = S.modules.map(m => {
+    const n = m.chapters.length, ok = m.chapters.filter(c => c.s === 2).length, wip = m.chapters.filter(c => c.s === 1).length;
+    const id = esc(m.id);
+    return `<article class="panel module" style="--c:var(--m${m.color})">
+      <header class="module-head">
+        <button type="button" class="swatch" data-act="modColor" data-id="${id}" aria-label="Changer la couleur"></button>
+        <input class="module-name" id="mn-${id}" data-field="name" data-id="${id}" value="${esc(m.name)}" aria-label="Nom du module" autocomplete="off">
+        <button type="button" class="icon-btn" data-act="modDel" data-id="${id}" aria-label="Supprimer le module ${esc(m.name)}">${X}</button>
+      </header>
+      <div class="bar3" role="img" aria-label="${ok} chapitres maîtrisés sur ${n}"><i class="b-ok" style="width:${n ? ok / n * 100 : 0}%"></i><i class="b-wip" style="width:${n ? wip / n * 100 : 0}%"></i></div>
+      <p class="module-stat"><strong>${ok}/${n}</strong> maîtrisés${wip ? ` · ${wip} en cours` : ''}</p>
+      <div class="module-fields">
+        <label class="field">Date d’examen<input type="date" id="me-${id}" data-field="exam" data-id="${id}" value="${esc(m.exam || '')}"></label>
+        <label class="field">Budget (h / semaine)<input type="number" id="mb-${id}" data-field="budget" data-id="${id}" min="0" max="60" step="0.5" value="${Number(m.budget) || 0}"></label>
+      </div>
+      <ul class="chapters">${m.chapters.map(c => `<li class="chap s-${c.s}">
+        <button type="button" class="chap-state" data-act="chapCycle" data-id="${id}" data-ch="${esc(c.id)}" aria-label="${esc(c.name)} : ${STATE[c.s]}. Changer l’état"></button>
+        <span>${esc(c.name)}</span>
+        <button type="button" class="icon-btn" data-act="chapDel" data-id="${id}" data-ch="${esc(c.id)}" aria-label="Supprimer ${esc(c.name)}">${X}</button></li>`).join('') || '<li class="empty">Aucun chapitre pour l’instant.</li>'}</ul>
+      <form class="chap-add" data-id="${id}"><input id="ca-${id}" placeholder="Ajouter un chapitre" aria-label="Nouveau chapitre" autocomplete="off"><button class="btn sm">Ajouter</button></form>
+      <footer class="module-foot" id="mf-${id}">${moduleFoot(m, mins, cardsBy)}</footer>
+    </article>`;
+  }).join('') || '<p class="empty">Aucun module. Ajoute ton premier module ci-dessous.</p>';
+}
+
+/* ---------- rendu : Flashcards ---------- */
+const BOX_DAYS = [0, 1, 2, 4, 8, 16];
+const BOX_TXT = ['', 'chaque jour', 'tous les 2 j', 'tous les 4 j', 'tous les 8 j', 'tous les 16 j'];
+let R = null;
+function renderCards() {
+  fillModules($('#cMod'), { all: 'Tous les modules' });
+  fillModules($('#cfMod'));
+  const mod = $('#cMod').value, t = today();
+  const pool = S.cards.filter(c => !mod || c.moduleId === mod);
+  const due = pool.filter(c => c.due <= t).length;
+  $('#dueInfo').innerHTML = `<strong>${due}</strong>${due > 1 ? 'cartes dues' : 'carte due'} aujourd’hui · ${plural(pool.length, 'carte', 'cartes')} au total`;
+  const counts = [0, 0, 0, 0, 0, 0];
+  pool.forEach(c => { counts[clamp(c.box, 1, 5)]++; });
+  $('#boxes').innerHTML = [1, 2, 3, 4, 5].map(b => `<div class="box"><span>Boîte ${b}</span><b>${counts[b]}</b><span>${BOX_TXT[b]}</span><div class="meter"><i style="width:${pool.length ? counts[b] / pool.length * 100 : 0}%"></i></div></div>`).join('');
+  $('#cardCount').textContent = S.cards.length;
+  $('#cardList').innerHTML = S.cards.length ? S.cards.slice().sort((a, b) => a.due.localeCompare(b.due)).map(c => `<li class="card-row">
+      <span class="dot" style="--c:${modColor(c.moduleId)}"></span>
+      <div><p class="q">${esc(c.q)}</p><p class="a">${esc(c.a)}</p></div>
+      <span class="chip">B${c.box} · ${c.due <= t ? 'à revoir' : fmtDate(c.due)}</span>
+      <button type="button" class="icon-btn" data-act="cardDel" data-id="${esc(c.id)}" aria-label="Supprimer la carte">${X}</button></li>`).join('')
+    : '<li class="empty">Aucune carte.</li>';
+  renderReview();
+}
+function startReview(all) {
+  const mod = $('#cMod').value, t = today();
+  const pool = S.cards.filter(c => (!mod || c.moduleId === mod) && (all || c.due <= t));
+  if (!pool.length) { toast(all ? 'Aucune carte dans ce module.' : 'Aucune carte due aujourd’hui. Reviens demain ou révise tout le module.'); return; }
+  pool.sort((a, b) => (a.box - b.box) || (Math.random() - 0.5));
+  R = { queue: pool.map(c => c.id), i: 0, shown: false, ok: 0, hard: 0, ko: 0, again: new Set() };
+  $('#reviewDone').hidden = true;
+  renderReview();
+  $('#flash').focus();
+}
+function renderReview() {
+  $('#review').hidden = !R;
+  if (!R) return;
+  const card = S.cards.find(c => c.id === R.queue[R.i]);
+  if (!card) { R.i++; if (R.i >= R.queue.length) endReview(true); else renderReview(); return; }
+  $('#rvProgress').textContent = `Carte ${R.i + 1} sur ${R.queue.length} · boîte ${card.box}`;
+  $('#rvMod').textContent = modName(card.moduleId);
+  $('#rvMod').style.color = modColor(card.moduleId);
+  $('#rvQ').textContent = card.q;
+  $('#rvA').textContent = card.a;
+  $('#rvA').hidden = !R.shown;
+  $('#rvHint').hidden = R.shown;
+  $('#grades').hidden = !R.shown;
+}
+function grade(g) {
+  if (!R || !R.shown) return;
+  const id = R.queue[R.i], c = S.cards.find(x => x.id === id), t = today();
+  if (c) {
+    if (g === 0) { c.box = 1; c.due = addDays(t, 1); R.ko++; if (!R.again.has(id)) { R.again.add(id); R.queue.push(id); } }
+    else if (g === 1) { c.due = addDays(t, 1); R.hard++; }
+    else { c.box = Math.min(5, c.box + 1); c.due = addDays(t, BOX_DAYS[c.box]); R.ok++; }
+    save('cards');
+  }
+  R.i++; R.shown = false;
+  if (R.i >= R.queue.length) endReview(true); else renderReview();
+}
+function endReview(done) {
+  if (done && R) {
+    const n = R.ok + R.hard + R.ko;
+    $('#reviewDone').hidden = false;
+    $('#reviewDone').innerHTML = `<h3>Révision terminée</h3><p>${plural(n, 'réponse', 'réponses')} : <strong>${R.ok}</strong> sues, <strong>${R.hard}</strong> hésitantes, <strong>${R.ko}</strong> ratées.</p><p class="hint">Les cartes ratées reviennent demain en boîte 1.</p>`;
+  }
+  R = null;
+  renderCards();
+}
+
+/* ---------- rendu : Pilotage ---------- */
+function renderStats() {
+  const t = today(), ws = weekStart(t), byDay = dayTotals();
+  const todayMin = byDay[t] || 0, goal = S.settings.dailyGoal;
+  let weekMin = 0;
+  for (let i = 0; i < 7; i++) weekMin += byDay[addDays(ws, i)] || 0;
+  const budget = S.modules.reduce((a, m) => a + (Number(m.budget) || 0), 0) * 60;
+  let k = byDay[t] ? t : addDays(t, -1), streak = 0;
+  while (byDay[k]) { streak++; k = addDays(k, -1); }
+  const chapters = S.modules.flatMap(m => m.chapters), mastered = chapters.filter(c => c.s === 2).length;
+  const due = S.cards.filter(c => c.due <= t).length, top = S.cards.filter(c => c.box === 5).length;
+  const since = addDays(t, -6), recent = S.sessions.filter(s => sessDay(s) >= since);
+  const rMin = recent.reduce((a, s) => a + s.m, 0), rDist = recent.reduce((a, s) => a + (s.d || 0), 0);
+  const totalMin = S.sessions.reduce((a, s) => a + s.m, 0);
+  const tile = (label, v, sub, pct) => `<div class="kpi"><span class="eyebrow">${label}</span><span class="v">${v}</span><span class="s">${sub}</span>${pct == null ? '' : `<div class="meter"><i style="width:${clamp(pct, 0, 100)}%"></i></div>`}</div>`;
+  $('#kpis').innerHTML = [
+    tile('Aujourd’hui', fmtMin(todayMin), `objectif ${fmtMin(goal)}`, todayMin / goal * 100),
+    tile('Cette semaine', fmtMin(weekMin), budget ? `budget ${fmtMin(budget)}` : 'aucun budget fixé', budget ? weekMin / budget * 100 : null),
+    tile('Série', plural(streak, 'jour', 'jours'), streak ? 'd’affilée avec au moins une session' : 'lance une session aujourd’hui'),
+    tile('Maîtrise', chapters.length ? `${Math.round(mastered / chapters.length * 100)} %` : '—', `${mastered}/${chapters.length} chapitres`, chapters.length ? mastered / chapters.length * 100 : 0),
+    tile('Cartes', String(due), `à revoir aujourd’hui · ${top} en boîte 5`),
+    tile('Concentration', rMin ? (rDist / (rMin / 60)).toFixed(1).replace('.', ',') : '—', `pensées parasites par heure (7 j) · ${fmtMin(totalMin)} au total`),
+  ].join('');
+  renderChart(byDay);
+  renderBudget(ws);
+}
+function renderChart(byDay) {
+  const t = today(), days = Array.from({ length: 14 }, (_, i) => addDays(t, i - 13));
+  const vals = days.map(d => Math.round(byDay[d] || 0)), goal = S.settings.dailyGoal;
+  const max = Math.max(goal, ...vals, 30);
+  const step = max <= 150 ? 30 : max <= 360 ? 60 : 120;
+  const topV = Math.ceil(max * 1.08 / step) * step;
+  const W = 720, H = 250, L = 46, Rr = 14, Tp = 16, B = 42, iw = W - L - Rr, ih = H - Tp - B, bw = iw / 14;
+  const y = v => Tp + ih - v / topV * ih;
+  const lab = v => v === 0 ? '0' : v % 60 === 0 ? `${v / 60} h` : `${v} min`;
+  let g = '';
+  for (let v = 0; v <= topV; v += step) g += `<line class="grid" x1="${L}" x2="${W - Rr}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${lab(v)}</text>`;
+  const WD = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+  days.forEach((d, i) => {
+    const v = vals[i], x = L + i * bw, cx = x + bw / 2, bwid = bw * 0.62, isT = d === t;
+    if (v > 0) {
+      const h = Math.max(2, Tp + ih - y(v));
+      g += `<rect class="bar ${v >= goal ? 'hit' : ''}" x="${cx - bwid / 2}" y="${Tp + ih - h}" width="${bwid}" height="${h}" rx="3"><title>${fmtDate(d)} : ${fmtMin(v)}</title></rect>`;
+      g += `<text class="val" x="${cx}" y="${Tp + ih - h - 5}" text-anchor="middle">${v}</text>`;
+    }
+    g += `<text x="${cx}" y="${H - B + 17}" text-anchor="middle" class="${isT ? 'today' : ''}">${WD[parseD(d).getDay()]}</text><text x="${cx}" y="${H - B + 31}" text-anchor="middle" class="${isT ? 'today' : ''}">${parseD(d).getDate()}</text>`;
+  });
+  g += `<line class="goal" x1="${L}" x2="${W - Rr}" y1="${y(goal)}" y2="${y(goal)}"/>`;
+  $('#chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Minutes de focus par jour sur 14 jours">${g}</svg>`;
+}
+function renderBudget(ws) {
+  const mins = minutesByModule(ws), total = minutesByModule();
+  $('#budgetTitle').textContent = `Budget vs réalisé, semaine du ${fmtDate(ws)}`;
+  let tb = 0, tr = 0;
+  const rows = S.modules.map(m => {
+    const b = (Number(m.budget) || 0) * 60, r = mins[m.id] || 0, e = r - b;
+    tb += b; tr += r;
+    return `<tr style="--c:var(--m${m.color})"><td><span class="mname"><span class="dot"></span>${esc(m.name)}</span></td>
+      <td class="r">${fmtMin(b)}</td><td class="r">${fmtMin(r)}</td>
+      <td class="r ${e >= 0 ? 'pos' : 'neg'}">${e >= 0 ? '+' : '−'}${fmtMin(Math.abs(e))}</td>
+      <td><div class="meter"><i style="width:${b ? clamp(r / b * 100, 0, 100) : (r ? 100 : 0)}%"></i></div></td>
+      <td class="r">${fmtMin(total[m.id] || 0)}</td></tr>`;
+  }).join('');
+  const other = (mins[''] || 0) + Object.keys(mins).filter(k => k && !modById(k)).reduce((a, k) => a + mins[k], 0);
+  tr += other;
+  const e = tr - tb;
+  $('#budget').innerHTML = `<thead><tr><th>Module</th><th class="r">Budget</th><th class="r">Réalisé</th><th class="r">Écart</th><th>Avancement</th><th class="r">Cumul</th></tr></thead>
+    <tbody>${rows}${other ? `<tr><td><span class="mname"><span class="dot"></span>Sans module</span></td><td class="r">—</td><td class="r">${fmtMin(other)}</td><td></td><td></td><td></td></tr>` : ''}</tbody>
+    <tfoot><tr><td>Total</td><td class="r">${fmtMin(tb)}</td><td class="r">${fmtMin(tr)}</td><td class="r ${e >= 0 ? 'pos' : 'neg'}">${e >= 0 ? '+' : '−'}${fmtMin(Math.abs(e))}</td><td></td><td class="r">${fmtMin(S.sessions.reduce((a, s) => a + s.m, 0))}</td></tr></tfoot>`;
+}
+
+/* ---------- rendu : Réglages ---------- */
+function renderSettings() {
+  $$('[data-set]').forEach(el => {
+    const v = S.settings[el.dataset.set];
+    if (el.type === 'checkbox') el.checked = !!v; else if (document.activeElement !== el) el.value = v;
+  });
+  setSync($('#sync').dataset.s);
+}
+
+/* ---------- navigation ---------- */
+const VIEWS = ['focus', 'plan', 'modules', 'cards', 'stats', 'settings'];
+const RENDER = { focus: renderFocus, plan: renderPlan, modules: renderModules, cards: renderCards, stats: renderStats, settings: renderSettings };
+let view = 'focus';
+function show(v) {
+  if (!VIEWS.includes(v)) v = 'focus';
+  if (v !== 'focus' && document.body.classList.contains('zen')) toggleZen(false);
+  view = v;
+  VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; });
+  $$('.tab').forEach(b => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  try { history.replaceState(null, '', '#' + v); } catch { /* rien */ }
+  RENDER[v]();
+  window.scrollTo(0, 0);
+}
+function renderAll() { RENDER[view](); if (view !== 'focus') renderTick(); }
+function toggleZen(on) {
+  const zen = on ?? !document.body.classList.contains('zen');
+  document.body.classList.toggle('zen', zen);
+  try {
+    if (zen && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    else if (!zen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch { /* plein écran indisponible */ }
+}
+
+/* ---------- confirmation en deux clics ---------- */
+function armed(el) {
+  if (el.dataset.armed === '1') return true;
+  el.dataset.armed = '1';
+  el.dataset.old = el.innerHTML;
+  el.textContent = 'Confirmer ?';
+  el.classList.add('armed');
+  setTimeout(() => { if (el.isConnected && el.dataset.armed === '1') { el.dataset.armed = ''; el.innerHTML = el.dataset.old; el.classList.remove('armed'); } }, 3000);
+  return false;
+}
+let toastT = 0;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+/* ---------- export / import ---------- */
+let downloads = window.claude && typeof window.claude.use === 'function' ? null : 'blob';
+const exportJSON = () => JSON.stringify({ app: 'cockpit-mba', version: 1, exportedAt: new Date().toISOString(), data: Object.fromEntries(KEYS.map(k => [k, S[k]])) }, null, 2);
+async function doDownload() {
+  const name = `cockpit-mba-${today()}.json`, json = exportJSON();
+  if (downloads === 'blob') {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    return;
+  }
+  if (!downloads) return;
+  try { await downloads.save({ filename: name, data: json }); toast('Sauvegarde enregistrée.'); }
+  catch (e) { if (e?.code !== 'declined') toast('Téléchargement impossible ici. Utilise « Copier les données ».'); }
+}
+let importPayload = '';
+function doImport() {
+  const raw = $('#importText').value.trim() || importPayload;
+  const st = $('#importStatus');
+  st.classList.remove('err');
+  try {
+    const obj = JSON.parse(raw);
+    const data = obj && obj.data && typeof obj.data === 'object' ? obj.data : obj;
+    const keys = KEYS.filter(k => data && k in data);
+    if (!keys.length || !Array.isArray(data.modules || [])) throw new Error('format');
+    keys.forEach(k => { S[k] = k === 'settings' ? { ...DEFAULT_SETTINGS, ...data[k] } : data[k]; });
+    save(...KEYS);
+    $('#importText').value = ''; importPayload = ''; $('#importFile').value = '';
+    st.textContent = `Sauvegarde restaurée (${plural(keys.length, 'section', 'sections')}).`;
+    setMode('focus');
+    renderAll();
+  } catch {
+    st.classList.add('err');
+    st.textContent = 'Ce contenu n’est pas une sauvegarde Cockpit MBA valide. Vérifie que tu as collé le fichier .json en entier.';
+  }
+}
+
+/* ---------- actions ---------- */
+const findTask = id => S.tasks.find(t => t.id === id);
+const ACT = {
+  mode(el) { if (T.running) { toast('Mets le minuteur en pause avant de changer de mode.'); return; } setMode(el.dataset.mode); },
+  toggle() { audio(); if (T.running) pause(); else start(); },
+  finish() { finishNow(); },
+  reset() { T.remaining = T.duration; T.running = false; if (T.mode === 'focus') { T.sessionStart = 0; T.distractions = 0; } cancelChime(); stopAmbient(); wakeOff(); saveTimer(); renderFocus(); },
+  preset(el) {
+    const [f, s, l] = el.dataset.p.split(',').map(Number);
+    Object.assign(S.settings, { focus: f, short: s, long: l });
+    save('settings');
+    if (!T.running) setMode(T.mode); else renderFocus();
+    toast(`Rythme ${f} / ${s} : appliqué ${T.running ? 'à la prochaine session' : 'maintenant'}.`);
+  },
+  distract() {
+    if (T.mode === 'focus' && T.running) T.distractions++;
+    saveTimer();
+    $('#distCount').textContent = T.distractions;
+    $('#capture').hidden = false;
+    $('#captureInput').focus();
+  },
+  zen() { toggleZen(); },
+  unlink() { T.taskId = ''; saveTimer(); renderFocus(); },
+  go(el) { show(el.dataset.view); },
+  thoughtDone(el) { S.thoughts = S.thoughts.filter(t => t.id !== el.dataset.id); save('thoughts'); renderThoughts(); },
+  thoughtTask(el) {
+    const th = S.thoughts.find(t => t.id === el.dataset.id);
+    if (!th) return;
+    S.tasks.push({ id: uid(), title: th.text, moduleId: T.moduleId, type: 'revision', due: today(), prio: 2, est: 1, poms: 0, done: false });
+    S.thoughts = S.thoughts.filter(t => t !== th);
+    save('thoughts', 'tasks'); renderFocus(); toast('Ajoutée au planning pour aujourd’hui.');
+  },
+  filter(el) { taskFilter = el.dataset.f; try { localStorage.setItem(LS + 'filter', taskFilter); } catch { /* rien */ } renderPlan(); },
+  taskDone(el) {
+    const t = findTask(el.dataset.id);
+    if (!t) return;
+    t.done = !t.done; t.doneAt = t.done ? Date.now() : 0;
+    if (t.done && T.taskId === t.id && !T.running) T.taskId = '';
+    save('tasks'); renderPlan();
+    if (t.done) toast('Tâche terminée.');
+  },
+  taskDel(el) {
+    S.tasks = S.tasks.filter(t => t.id !== el.dataset.id);
+    if (T.taskId === el.dataset.id) { T.taskId = ''; saveTimer(); }
+    save('tasks'); renderAll();
+  },
+  taskFocus(el) {
+    const t = findTask(el.dataset.id);
+    if (!t) return;
+    T.taskId = t.id; T.intention = t.title;
+    if (t.moduleId) T.moduleId = t.moduleId;
+    saveTimer(); show('focus');
+    if (!T.running) toast('Tâche chargée. Lance le minuteur quand tu es prêt.');
+  },
+  clearExamples() { S.tasks = S.tasks.filter(t => !t.ex); save('tasks'); renderAll(); toast('Exemples retirés.'); },
+  modColor(el) { const m = modById(el.dataset.id); if (!m) return; m.color = m.color % 8 + 1; save('modules'); renderModules(); $(`[data-act="modColor"][data-id="${CSS.escape(m.id)}"]`)?.focus(); },
+  modDel(el) {
+    if (!armed(el)) return;
+    S.modules = S.modules.filter(m => m.id !== el.dataset.id);
+    save('modules'); renderModules(); toast('Module supprimé. Ses sessions restent comptées dans « Sans module ».');
+  },
+  chapCycle(el) {
+    const m = modById(el.dataset.id), c = m?.chapters.find(x => x.id === el.dataset.ch);
+    if (!c) return;
+    c.s = (c.s + 1) % 3;
+    save('modules'); renderModules();
+    $(`[data-act="chapCycle"][data-ch="${CSS.escape(c.id)}"]`)?.focus();
+  },
+  chapDel(el) {
+    const m = modById(el.dataset.id);
+    if (!m) return;
+    m.chapters = m.chapters.filter(x => x.id !== el.dataset.ch);
+    save('modules'); renderModules();
+  },
+  review(el) { startReview(!!el.dataset.all); },
+  flip() { if (R && !R.shown) { R.shown = true; renderReview(); } },
+  grade(el) { grade(Number(el.dataset.g)); },
+  endReview() { endReview(false); },
+  cardDel(el) { if (!armed(el)) return; S.cards = S.cards.filter(c => c.id !== el.dataset.id); save('cards'); renderCards(); },
+  testSound() { chimeAt(0); },
+  download() { doDownload(); },
+  copy() {
+    const json = exportJSON(), box = $('#exportBox');
+    const fallback = () => { box.hidden = false; box.value = json; box.focus(); box.select(); toast('Sélectionne et copie le texte affiché.'); };
+    try { navigator.clipboard.writeText(json).then(() => toast('Données copiées. Colle-les dans un fichier .json.'), fallback); } catch { fallback(); }
+  },
+  import(el) { if (!$('#importText').value.trim() && !importPayload) { $('#importStatus').textContent = 'Choisis un fichier ou colle une sauvegarde d’abord.'; return; } if (!armed(el)) return; doImport(); },
+  resetAll(el) {
+    if (!armed(el)) return;
+    Object.assign(S, defaults());
+    save(...KEYS);
+    T.cycle = 0; T.taskId = ''; T.intention = ''; T.moduleId = S.modules[0].id;
+    setMode('focus'); renderAll(); toast('Tout a été réinitialisé.');
+  },
+};
+
+document.addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (tab) { show(tab.dataset.view); return; }
+  const el = e.target.closest('[data-act]');
+  if (el && ACT[el.dataset.act]) ACT[el.dataset.act](el, e);
+});
+
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.id === 'capture') {
+    const v = $('#captureInput').value.trim();
+    if (v) { S.thoughts.unshift({ id: uid(), text: v, t: Date.now() }); save('thoughts'); renderThoughts(); toast('Notée. Retour au travail.'); }
+    $('#captureInput').value = ''; f.hidden = true;
+  } else if (f.id === 'taskForm') {
+    const title = $('#tTitle').value.trim();
+    if (!title) return;
+    S.tasks.push({ id: uid(), title, moduleId: $('#tModule').value, type: $('#tType').value, due: $('#tDue').value, prio: Number($('#tPrio').value), est: clamp(Number($('#tEst').value) || 1, 1, 30), poms: 0, done: false });
+    save('tasks');
+    $('#tTitle').value = '';
+    renderPlan(); $('#tTitle').focus(); toast('Tâche ajoutée.');
+  } else if (f.id === 'moduleForm') {
+    const name = $('#mName').value.trim();
+    if (!name) return;
+    const used = S.modules.map(m => m.color);
+    const color = [1, 2, 3, 4, 5, 6, 7, 8].find(c => !used.includes(c)) || (S.modules.length % 8) + 1;
+    S.modules.push({ id: 'm' + uid(), name, color, exam: '', budget: 1, chapters: [] });
+    save('modules'); $('#mName').value = ''; renderModules(); toast('Module ajouté.');
+  } else if (f.id === 'cardForm') {
+    const q = $('#cfQ').value.trim(), a = $('#cfA').value.trim();
+    if (!q || !a) return;
+    S.cards.push({ id: uid(), moduleId: $('#cfMod').value, q, a, box: 1, due: today() });
+    save('cards'); $('#cfQ').value = ''; $('#cfA').value = ''; renderCards(); $('#cfQ').focus(); toast('Carte ajoutée en boîte 1.');
+  } else if (f.classList.contains('chap-add')) {
+    const m = modById(f.dataset.id), input = f.querySelector('input'), v = input.value.trim();
+    if (!m || !v) return;
+    m.chapters.push({ id: 'c' + uid(), name: v, s: 0 });
+    save('modules'); renderModules();
+    $(`#ca-${CSS.escape(m.id)}`)?.focus();
+  }
+});
+
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'fModule') { T.moduleId = el.value; const t = findTask(T.taskId); if (t && t.moduleId !== el.value) T.taskId = ''; saveTimer(); renderFocus(); }
+  else if (el.id === 'fAmbient') {
+    S.settings.ambient = el.value; save('settings');
+    stopAmbient();
+    if (T.running && T.mode === 'focus') startAmbient();
+    else if (el.value !== 'off') { startAmbient(); setTimeout(() => { if (!(T.running && T.mode === 'focus')) stopAmbient(); }, 2500); }
+  }
+  else if (el.id === 'taskMod') renderTaskList();
+  else if (el.id === 'cMod') renderCards();
+  else if (el.dataset.field) {
+    const m = modById(el.dataset.id);
+    if (!m) return;
+    if (el.dataset.field === 'name') { const v = el.value.trim(); if (v) m.name = v; else el.value = m.name; }
+    else if (el.dataset.field === 'exam') m.exam = el.value;
+    else if (el.dataset.field === 'budget') { m.budget = clamp(Number(el.value) || 0, 0, 60); el.value = m.budget; }
+    save('modules');
+    const foot = $(`#mf-${CSS.escape(m.id)}`);
+    if (foot) { const cardsBy = {}; S.cards.forEach(c => { cardsBy[c.moduleId] = (cardsBy[c.moduleId] || 0) + 1; }); foot.innerHTML = moduleFoot(m, minutesByModule(), cardsBy); }
+  }
+  else if (el.dataset.set) {
+    const k = el.dataset.set;
+    if (el.type === 'checkbox') S.settings[k] = el.checked;
+    else {
+      const n = Number(el.value);
+      const lim = { focus: [5, 180], short: [1, 60], long: [1, 90], longEvery: [2, 10], dailyGoal: [15, 720], volume: [0, 1] }[k];
+      S.settings[k] = clamp(Number.isFinite(n) ? n : DEFAULT_SETTINGS[k], lim[0], lim[1]);
+      el.value = S.settings[k];
+    }
+    save('settings');
+    if (['focus', 'short', 'long'].includes(k) && !T.running && T.remaining === T.duration) setMode(T.mode);
+    if (k === 'volume' && ambient && AC) ambient.g.gain.setTargetAtTime(0.35 * S.settings.volume, AC.currentTime, 0.2);
+  }
+  else if (el.id === 'importFile' && el.files && el.files[0]) {
+    const r = new FileReader();
+    r.onload = () => { importPayload = String(r.result || ''); $('#importStatus').classList.remove('err'); $('#importStatus').textContent = `Fichier « ${el.files[0].name} » prêt. Clique sur Restaurer.`; };
+    r.readAsText(el.files[0]);
+  }
+});
+document.addEventListener('input', e => { if (e.target.id === 'fIntent') { T.intention = e.target.value; saveTimer(); } });
+
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable;
+  if (e.key === 'Escape') {
+    if (!$('#capture').hidden) { $('#capture').hidden = true; return; }
+    if (document.body.classList.contains('zen')) toggleZen(false);
+    return;
+  }
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (view === 'cards' && R) {
+    if ((e.key === ' ' || e.key === 'Enter') && !R.shown && !e.target.closest('button')) { e.preventDefault(); ACT.flip(); }
+    else if (R.shown && ['1', '2', '3'].includes(e.key)) { e.preventDefault(); grade(Number(e.key) - 1); }
+    return;
+  }
+  if (view === 'focus' && e.key === ' ' && !e.target.closest('button')) { e.preventDefault(); ACT.toggle(); }
+});
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v !== view && VIEWS.includes(v)) show(v); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && T.running) { wakeOn(); tick(); } });
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('zen')) toggleZen(false); });
+
+/* ---------- démarrage ---------- */
+$('#tDue').value = addDays(today(), 1);
+if (T.running && Date.now() >= T.endAt) complete(); else if (T.running) wakeOn();
+show((location.hash || '').slice(1));
+renderTick();
+setInterval(tick, 250);
+initCloud();
+if (!downloads) window.claude.use('downloads').then(d => { downloads = d; $('#btnDownload').hidden = !d; }).catch(() => {});
+else $('#btnDownload').hidden = false;
+})();
+</script>
+<!-- artifact:end -->
+</body>
+</html>
